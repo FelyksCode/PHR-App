@@ -43,3 +43,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
+    debugImplementation("androidx.health.connect:connect-testing:1.0.0-alpha03")
+}

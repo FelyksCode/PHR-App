@@ -63,10 +63,18 @@ class _VitalSignsScreenState extends ConsumerState<VitalSignsScreen> {
     });
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         title: const Text('Vital Signs'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1C1C1E),
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: const TextStyle(
+          color: Color(0xFF1C1C1E),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       body: LoadingOverlay(
         isLoading: submissionState.isLoading,
@@ -89,107 +97,117 @@ class _VitalSignsScreenState extends ConsumerState<VitalSignsScreen> {
   }
 
   Widget _buildVitalSignsForm() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Vital Signs', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            CustomTextField(
-              label: 'Body Weight (kg)',
-              controller: _weightController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Weight is required';
-                final weight = double.tryParse(value);
-                if (weight == null || weight <= 0) return 'Enter valid weight';
-                return null;
-              },
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Vital Signs',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1C1C1E),
             ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              label: 'Body Height (cm)',
-              controller: _heightController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Height is required';
-                final height = double.tryParse(value);
-                if (height == null || height <= 0) return 'Enter valid height';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              label: 'Body Temperature (°C)',
-              controller: _temperatureController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Temperature is required';
-                final temp = double.tryParse(value);
-                if (temp == null || temp <= 0) return 'Enter valid temperature';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    label: 'Systolic BP (mmHg)',
-                    controller: _systolicController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Required';
-                      final systolic = int.tryParse(value);
-                      if (systolic == null || systolic <= 0) return 'Invalid';
-                      return null;
-                    },
-                  ),
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Body Weight (kg)',
+            controller: _weightController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Weight is required';
+              final weight = double.tryParse(value);
+              if (weight == null || weight <= 0) return 'Enter valid weight';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Body Height (cm)',
+            controller: _heightController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Height is required';
+              final height = double.tryParse(value);
+              if (height == null || height <= 0) return 'Enter valid height';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Body Temperature (°C)',
+            controller: _temperatureController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Temperature is required';
+              final temp = double.tryParse(value);
+              if (temp == null || temp <= 0) return 'Enter valid temperature';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: CustomTextField(
+                  label: 'Systolic BP (mmHg)',
+                  controller: _systolicController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Required';
+                    final systolic = int.tryParse(value);
+                    if (systolic == null || systolic <= 0) return 'Invalid';
+                    return null;
+                  },
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomTextField(
-                    label: 'Diastolic BP (mmHg)',
-                    controller: _diastolicController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Required';
-                      final diastolic = int.tryParse(value);
-                      if (diastolic == null || diastolic <= 0) return 'Invalid';
-                      return null;
-                    },
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: CustomTextField(
+                  label: 'Diastolic BP (mmHg)',
+                  controller: _diastolicController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Required';
+                    final diastolic = int.tryParse(value);
+                    if (diastolic == null || diastolic <= 0) return 'Invalid';
+                    return null;
+                  },
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              label: 'Oxygen Saturation (%)',
-              controller: _oxygenController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'SpO₂ is required';
-                final spo2 = double.tryParse(value);
-                if (spo2 == null || spo2 <= 0) return 'Enter valid SpO₂';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              label: 'Notes (Optional)',
-              controller: _notesController,
-              maxLines: 3,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Oxygen Saturation (%)',
+            controller: _oxygenController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'SpO₂ is required';
+              final spo2 = double.tryParse(value);
+              if (spo2 == null || spo2 <= 0) return 'Enter valid SpO₂';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Notes (Optional)',
+            controller: _notesController,
+            maxLines: 3,
+          ),
+        ],
       ),
     );
   }
@@ -202,6 +220,14 @@ class _VitalSignsScreenState extends ConsumerState<VitalSignsScreen> {
           height: 48,
           child: ElevatedButton(
             onPressed: _submitVitalSigns,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF007AFF),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Submit to FHIR Gateway'),
           ),
         ),
@@ -211,6 +237,13 @@ class _VitalSignsScreenState extends ConsumerState<VitalSignsScreen> {
           height: 48,
           child: OutlinedButton(
             onPressed: _clearForm,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1C1C1E),
+              side: const BorderSide(color: Color(0xFFE5E5EA)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Clear Form'),
           ),
         ),
