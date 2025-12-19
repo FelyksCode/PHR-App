@@ -112,6 +112,16 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
     }
   }
   
+  /// Check if periodic sync is currently enabled
+  Future<bool> isPeriodicSyncEnabled() async {
+    try {
+      return await _service.isPeriodicSyncEnabled();
+    } catch (e) {
+      print('Error checking periodic sync status: $e');
+      return false;
+    }
+  }
+  
   /// Refresh sync status
   Future<void> refresh() async {
     state = const AsyncValue.loading();

@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/condition_entity.dart';
 import '../../domain/usecases/condition_usecases.dart';
 import 'observation_providers.dart'; // Import for healthDataRepositoryProvider
+import 'cache_providers.dart';
+import 'offline_mode_provider.dart';
+import 'connectivity_provider.dart';
 
 final submitConditionUseCaseProvider = Provider<SubmitConditionUseCase>((ref) {
   final repository = ref.watch(healthDataRepositoryProvider);
@@ -24,6 +27,83 @@ final conditionSubmissionProvider = StateNotifierProvider<ConditionSubmissionNot
   final conditionsNotifier = ref.watch(conditionsProvider.notifier);
   return ConditionSubmissionNotifier(submitConditionUseCase, conditionsNotifier);
 });
+
+// Latest conditions from FHIR API provider
+final latestConditionsProvider = StateNotifierProvider<LatestConditionsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  final cache = ref.watch(localCacheServiceProvider);
+  return LatestConditionsNotifier(ref, apiService, cache);
+});
+
+class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+  final Ref _ref;
+  final dynamic _apiService; // ApiService type
+  final dynamic _cache; // LocalCacheService
+
+  LatestConditionsNotifier(this._ref, this._apiService, this._cache) : super(const AsyncValue.loading()) {
+    _loadWithCache();
+  }
+
+  Future<void> _loadWithCache() async {
+    try {
+      // Load cached data first for instant display (especially offline)
+      final cached = await _cache.getCachedConditions();
+      if (cached.isNotEmpty) {
+        state = AsyncValue.data(cached);
+      }
+
+      final online = await _apiService.isOnline();
+      _ref.read(connectivityProvider.notifier).state = online;
+      if (!online) {
+        _ref.read(offlineModeProvider.notifier).state = true;
+        return;
+      } else {
+        _ref.read(offlineModeProvider.notifier).state = false;
+      }
+
+      // Then try to fetch fresh data
+      await loadLatestConditions();
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<void> loadLatestConditions() async {
+    if (_isOffline()) {
+      print('📴 Offline mode: skip fetching conditions, use cache.');
+      final cached = await _cache.getCachedConditions();
+      state = AsyncValue.data(cached);
+      return;
+    }
+
+    try {
+      final conditions = await _apiService.getLatestConditions(count: 10);
+      await _cache.cacheConditions(conditions);
+      state = AsyncValue.data(conditions);
+    } catch (error, stackTrace) {
+      // Keep cached data if fetch fails and we already have it
+      final currentData = state.value;
+      if (currentData == null || currentData.isEmpty) {
+        final cached = await _cache.getCachedConditions();
+        if (cached.isNotEmpty) {
+          state = AsyncValue.data(cached);
+        } else {
+          state = AsyncValue.error(error, stackTrace);
+        }
+      } else {
+      }
+      // If we already have data showing, silently fail to keep current state
+    }
+  }
+
+  Future<void> refresh() async {
+    await loadLatestConditions();
+  }
+
+  bool _isOffline() {
+    return !_ref.read(connectivityProvider) || _ref.read(offlineModeProvider);
+  }
+}
 
 class ConditionsNotifier extends StateNotifier<AsyncValue<List<ConditionEntity>>> {
   final GetConditionsUseCase _getConditionsUseCase;

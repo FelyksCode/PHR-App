@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../main.dart'; // Import for permissionsRequestedProvider
 import '../../services/health_connect_service.dart';
 import '../../constants/health_permissions.dart';
+import 'notification_permissions_screen.dart';
 
 class PermissionsScreen extends ConsumerStatefulWidget {
   const PermissionsScreen({super.key});
@@ -12,13 +13,15 @@ class PermissionsScreen extends ConsumerStatefulWidget {
   ConsumerState<PermissionsScreen> createState() => _PermissionsScreenState();
 }
 
+final isRequestingPermissionsProvider = StateProvider<bool>((ref) => false);
+
 class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
-  bool _isRequestingPermissions = false;
 
   @override
   Widget build(BuildContext context) {
     final platform = Platform.isIOS ? 'HealthKit' : 'Health Connect';
     final platformIcon = Platform.isIOS ? Icons.phone_iphone : Icons.android;
+    final isRequestingPermissions = ref.watch(isRequestingPermissionsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -138,7 +141,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _isRequestingPermissions ? null : _requestPermissions,
+                      onPressed: isRequestingPermissions ? null : _requestPermissions,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF007AFF),
                         foregroundColor: Colors.white,
@@ -147,7 +150,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: _isRequestingPermissions
+                      child: isRequestingPermissions
                           ? const SizedBox(
                               height: 20,
                               width: 20,
@@ -170,7 +173,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
                     width: double.infinity,
                     height: 52,
                     child: TextButton(
-                      onPressed: _isRequestingPermissions ? null : _skipPermissions,
+                      onPressed: isRequestingPermissions ? null : _skipPermissions,
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFF8E8E93),
                         shape: RoundedRectangleBorder(
@@ -258,9 +261,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    setState(() {
-      _isRequestingPermissions = true;
-    });
+    ref.read(isRequestingPermissionsProvider.notifier).state = true;
 
     try {
       bool permissionsGranted = false;
@@ -301,9 +302,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
       
       if (!featuresAvailable || !healthConnectInstalled) {
         if (mounted) {
-          setState(() {
-            _isRequestingPermissions = false;
-          });
+          ref.read(isRequestingPermissionsProvider.notifier).state = false;
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -351,9 +350,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
         permissionsGranted = true;
         
         if (mounted) {
-          setState(() {
-            _isRequestingPermissions = false;
-          });
+          ref.read(isRequestingPermissionsProvider.notifier).state = false;
           
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -442,9 +439,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
           );
         } catch (e) {
           if (mounted) {
-            setState(() {
-              _isRequestingPermissions = false;
-            });
+            ref.read(isRequestingPermissionsProvider.notifier).state = false;
 
             if (e.toString().contains('Permission launcher not found') || 
                 e.toString().contains('launcher not found')) {
@@ -517,13 +512,10 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
       }
       
       if (mounted) {
-        setState(() {
-          _isRequestingPermissions = false;
-        });
+        ref.read(isRequestingPermissionsProvider.notifier).state = false;
 
         if (permissionsGranted) {
-          // Mark permissions as requested
-          ref.read(permissionsRequestedProvider.notifier).state = true;
+          // DO NOT mark permissions as requested yet - wait for notification permissions screen
           
           if (!hasAllPermissions) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -545,6 +537,22 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
               ),
             );
           }
+
+          // Navigate to notification permissions screen after a short delay
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPermissionsScreen(),
+                ),
+              ).then((notificationGranted) {
+                // After notification permissions are handled, mark as requested
+                if (mounted) {
+                  ref.read(permissionsRequestedProvider.notifier).state = true;
+                }
+              });
+            }
+          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -571,9 +579,7 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isRequestingPermissions = false;
-        });
+        ref.read(isRequestingPermissionsProvider.notifier).state = false;
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -611,7 +617,12 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> {
             children: [
               Icon(Icons.info, color: Colors.white),
               SizedBox(width: 12),
-              Text('You can enable permissions later in Health Sync.'),
+                Expanded(
+                  child: Text(
+                    'You can enable permissions later in Health Sync.',
+                    overflow: TextOverflow.visible,
+                  ),
+                ),
             ],
           ),
           backgroundColor: Color(0xFF8E8E93),

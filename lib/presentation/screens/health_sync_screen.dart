@@ -5,6 +5,8 @@ import 'dart:io';
 import '../../domain/entities/health_sync_entity.dart';
 import '../../providers/health_sync_providers.dart';
 import '../../services/health_sync_service.dart';
+import '../../services/health_connect_service.dart';
+import '../../constants/health_permissions.dart';
 
 class HealthSyncScreen extends ConsumerStatefulWidget {
   const HealthSyncScreen({super.key});
@@ -13,16 +15,18 @@ class HealthSyncScreen extends ConsumerStatefulWidget {
   ConsumerState<HealthSyncScreen> createState() => _HealthSyncScreenState();
 }
 
+final periodicSyncEnabledProvider = StateProvider<bool>((ref) => false);
+
 class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
-  Set<HealthDataType> _selectedDataTypes = {};
-  bool _isPeriodicSyncEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize background sync on Android
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(healthSyncNotifierProvider.notifier).initializeBackgroundSync();
+      final syncNotifier = ref.read(healthSyncNotifierProvider.notifier);
+      final isEnabled = await syncNotifier.isPeriodicSyncEnabled();
+      ref.read(periodicSyncEnabledProvider.notifier).state = isEnabled;
     });
   }
 
@@ -84,11 +88,6 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
           
           // Sync status card
           _buildSyncStatusCard(context, syncEntity),
-          
-          const SizedBox(height: 16),
-          
-          // Data types selection
-          _buildDataTypesCard(context, supportedDataTypes, syncEntity, syncNotifier),
           
           const SizedBox(height: 16),
           
@@ -209,83 +208,6 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     );
   }
 
-  Widget _buildDataTypesCard(
-    BuildContext context,
-    List<HealthDataType> supportedDataTypes,
-    HealthSyncEntity syncEntity,
-    HealthSyncNotifier syncNotifier,
-  ) {
-    if (_selectedDataTypes.isEmpty) {
-      _selectedDataTypes = Set.from(syncEntity.permittedDataTypes);
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Health Data Types',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Select the health data types you want to sync:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: supportedDataTypes.map((dataType) {
-                final isSelected = _selectedDataTypes.contains(dataType);
-                final isPermitted = syncEntity.permittedDataTypes.contains(dataType);
-                
-                return FilterChip(
-                  label: Text(dataType.displayName),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedDataTypes.add(dataType);
-                      } else {
-                        _selectedDataTypes.remove(dataType);
-                      }
-                    });
-                  },
-                  avatar: isPermitted 
-                    ? const Icon(Icons.check_circle, size: 16, color: Colors.green)
-                    : const Icon(Icons.circle, size: 16),
-                  backgroundColor: isPermitted ? Colors.green.shade50 : null,
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _selectedDataTypes.isNotEmpty
-                  ? () => _requestPermissions(context, syncNotifier)
-                  : null,
-                icon: const Icon(Icons.security),
-                label: const Text('Request Permissions'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSyncControlsCard(
     BuildContext context,
     HealthSyncEntity syncEntity,
@@ -349,6 +271,7 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
   }
 
   Widget _buildBackgroundSyncCard(BuildContext context, HealthSyncNotifier syncNotifier) {
+    final isPeriodicSyncEnabled = ref.watch(periodicSyncEnabledProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -366,16 +289,65 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Enable Periodic Sync'),
               subtitle: const Text('Automatically sync health data every hour'),
-              value: _isPeriodicSyncEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _isPeriodicSyncEnabled = value;
-                });
-                
-                if (value) {
-                  syncNotifier.schedulePeriodicSync();
-                } else {
-                  syncNotifier.cancelPeriodicSync();
+              value: isPeriodicSyncEnabled,
+              onChanged: (value) async {
+                ref.read(periodicSyncEnabledProvider.notifier).state = value;
+                try {
+                  if (value) {
+                    await syncNotifier.schedulePeriodicSync();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text('Background sync enabled'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } else {
+                    await syncNotifier.cancelPeriodicSync();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.info, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text('Background sync disabled'),
+                            ],
+                          ),
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  // Revert state if operation failed
+                  ref.read(periodicSyncEnabledProvider.notifier).state = !value;
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.error, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Failed to ${value ? 'enable' : 'disable'} background sync: ${e.toString()}'),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 }
               },
             ),
@@ -425,34 +397,6 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
   }
 
   // Action methods
-  Future<void> _requestPermissions(BuildContext context, HealthSyncNotifier syncNotifier) async {
-    try {
-      final granted = await syncNotifier.requestPermissions(_selectedDataTypes.toList());
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              granted
-                ? 'Permissions granted successfully!'
-                : 'Some permissions were denied. Please check your device settings.',
-            ),
-            backgroundColor: granted ? Colors.green : Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error requesting permissions: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _performSync(BuildContext context, HealthSyncNotifier syncNotifier) async {
     try {
       final result = await syncNotifier.performSync();

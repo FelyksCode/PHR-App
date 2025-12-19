@@ -60,20 +60,63 @@ class ConditionModel extends ConditionEntity {
   }
 
   /// Convert to FHIR Condition resource format for backend
+  /// Optimized to work with backend defaults - only sends required fields
   Map<String, dynamic> toFhirJson() {
-    final Map<String, Map<String, String>> categoryCodes = {
-      'current_symptom': {
-        'system': 'http://terminology.hl7.org/CodeSystem/condition-category',
-        'code': 'problem-list-item',
-        'display': 'Problem List Item'
-      },
-      'side_effect': {
+    // Map common conditions to SNOMED codes
+    final Map<String, Map<String, String>> conditionCodes = {
+      'fatigue': {
         'system': 'http://snomed.info/sct',
-        'code': '420134006',
-        'display': 'Propensity to adverse reactions'
+        'code': '84229001',
+        'display': 'Fatigue'
+      },
+      'headache': {
+        'system': 'http://snomed.info/sct',
+        'code': '25064002',
+        'display': 'Headache'
+      },
+      'nausea': {
+        'system': 'http://snomed.info/sct',
+        'code': '422587007',
+        'display': 'Nausea'
+      },
+      'dizziness': {
+        'system': 'http://snomed.info/sct',
+        'code': '404684003',
+        'display': 'Dizziness'
+      },
+      'fever': {
+        'system': 'http://snomed.info/sct',
+        'code': '386661006',
+        'display': 'Fever'
+      },
+      'cough': {
+        'system': 'http://snomed.info/sct',
+        'code': '49727002',
+        'display': 'Cough'
+      },
+      'pain': {
+        'system': 'http://snomed.info/sct',
+        'code': '22253000',
+        'display': 'Pain'
+      },
+      'shortness of breath': {
+        'system': 'http://snomed.info/sct',
+        'code': '267036007',
+        'display': 'Dyspnea'
+      },
+      'chest pain': {
+        'system': 'http://snomed.info/sct',
+        'code': '29857009',
+        'display': 'Chest pain'
+      },
+      'abdominal pain': {
+        'system': 'http://snomed.info/sct',
+        'code': '21522001',
+        'display': 'Abdominal pain'
       }
     };
 
+    // Map severity to SNOMED codes as per specification
     final Map<String, Map<String, String>> severityCodes = {
       'mild': {
         'system': 'http://snomed.info/sct',
@@ -92,9 +135,23 @@ class ConditionModel extends ConditionEntity {
       }
     };
 
-    return {
+    // Try to find SNOMED code for the condition description
+    final descriptionLower = description.toLowerCase();
+    final conditionCode = conditionCodes[descriptionLower];
+
+    // Build the complete FHIR resource matching backend specification
+    final Map<String, dynamic> fhirResource = {
       'resourceType': 'Condition',
-      'id': id,
+      
+      // Core condition identification with proper FHIR coding structure
+      'code': conditionCode != null ? {
+        'coding': [conditionCode],
+        'text': conditionCode['display'] ?? description
+      } : {
+        'text': description
+      },
+      
+      // Clinical status - always active for new conditions
       'clinicalStatus': {
         'coding': [
           {
@@ -104,33 +161,51 @@ class ConditionModel extends ConditionEntity {
           }
         ]
       },
-      'verificationStatus': {
-        'coding': [
-          {
-            'system': 'http://terminology.hl7.org/CodeSystem/condition-ver-status',
-            'code': 'confirmed',
-            'display': 'Confirmed'
-          }
-        ]
-      },
+      
+      // Category - problem list item for symptoms/conditions
       'category': [
         {
-          'coding': [categoryCodes[category.name] ?? {}]
+          'coding': [
+            {
+              'system': 'http://terminology.hl7.org/CodeSystem/condition-category',
+              'code': 'problem-list-item',
+              'display': 'Problem List Item'
+            }
+          ]
         }
       ],
+      
+      // Severity with SNOMED coding
       'severity': {
-        'coding': [severityCodes[severity.name] ?? {}]
+        'coding': [severityCodes[severity.name] ?? severityCodes['mild']!]
       },
-      'code': {
-        'text': description
-      },
-      'subject': {
-        'reference': 'Patient/${patientId ?? 'unknown'}'
-      },
+      
+      // Timing information with ISO 8601 format
+      'onsetDateTime': onsetDate?.toIso8601String() ?? timestamp.toIso8601String(),
       'recordedDate': timestamp.toIso8601String(),
-      if (onsetDate != null) 'onsetDateTime': onsetDate!.toIso8601String(),
-      if (abatementDate != null) 'abatementDateTime': abatementDate!.toIso8601String(),
-      if (notes != null) 'note': [{'text': notes}],
     };
+
+    // Only include subject if we have a specific patient ID
+    // Backend will automatically set subject from current user if not provided
+    if (patientId != null && patientId!.isNotEmpty && patientId != 'unknown') {
+      fhirResource['subject'] = {
+        'reference': 'Patient/$patientId'
+      };
+    }
+
+    // Only include notes if present
+    if (notes != null && notes!.isNotEmpty) {
+      fhirResource['note'] = [
+        {'text': notes}
+      ];
+    }
+
+    // Let backend handle default clinicalStatus and category
+    // This reduces payload size and avoids potential conflicts
+    // Backend will set:
+    // - clinicalStatus: active (default)
+    // - category: problem-list-item (default)
+
+    return fhirResource;
   }
 }

@@ -199,94 +199,33 @@ class HealthConnectService {
       await initialize();
     }
 
-    // Check if features are available first
-    final featuresAvailable = await isFeatureAvailable();
-    if (!featuresAvailable && !kDebugMode) {
-      throw Exception(
-        'Health Connect features are not available on this device',
-      );
-    }
-
-    // First check if we already have all required permissions
-    final hasAll = await hasAllPermissions(permissions: permissions);
-    if (hasAll) {
-      if (kDebugMode) {
-        print('All permissions already granted, skipping request');
-      }
-      return true;
-    }
-
-    // Get currently granted permissions to see what we still need
-    final grantedPermissions = await getGrantedPermissions(
-      permissions: permissions,
-    );
-    final missingPermissions = permissions
-        .where((p) => !grantedPermissions.contains(p))
-        .toList();
-
-    if (kDebugMode) {
-      print('Requesting ${missingPermissions.length} missing permissions:');
-      for (final permission in missingPermissions) {
-        print('  - $permission');
-      }
-    }
-
     try {
       if (Platform.isAndroid) {
         if (kDebugMode) {
-          print('Attempting to request Health Connect permissions...');
-          print('Missing permissions: $missingPermissions');
-          print(
-            'Access types: ${accessTypes?.take(missingPermissions.length).toList()}',
-          );
+          print('Requesting Health Connect permissions...');
+          print('Permissions to request: ${permissions.length}');
         }
 
-        // For Android Health Connect - ensure proper setup
-        try {
-          // Use correct requestAuthorization format
-          if (kDebugMode) {
-            print(
-              'Attempting Health Connect permission request with correct format...',
-            );
-          }
-          final result = await _healthClient!.requestAuthorization(
-            permissions,
-            permissions: accessTypes ?? permissions.map((_) => HealthDataAccess.READ_WRITE).toList(),
-          );
-
-          if (kDebugMode) {
-            print('Health Connect permission result: $result');
-
-            // Verify what permissions we actually have now
-            final verifyPermissions = await getGrantedPermissions(
-              permissions: permissions,
-            );
-            print(
-              'Permissions after request: ${verifyPermissions.length}/${permissions.length}',
-            );
-          }
-
-          return result;
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error in permission request: $e');
-            print('Error type: ${e.runtimeType}');
-          }
-
-          // If this is the permission launcher error, provide more context
-          if (e.toString().toLowerCase().contains('launcher not found')) {
-            throw Exception(
-              'Health Connect permission launcher not found. Please ensure Health Connect app is installed and properly configured on this device.',
-            );
-          }
-
-          rethrow;
-        }
-      } else if (Platform.isIOS) {
-        // For iOS HealthKit - request missing permissions
+        // Always request permissions - let the Health Connect dialog handle the UI
+        // Use requestAuthorization with proper parameter format
         final result = await _healthClient!.requestAuthorization(
-          missingPermissions,
+          permissions,
+          permissions: accessTypes ?? 
+                      permissions.map((_) => HealthDataAccess.READ_WRITE).toList(),
         );
+
+        if (kDebugMode) {
+          print('Health Connect permission request result: $result');
+        }
+
+        return result;
+      } else if (Platform.isIOS) {
+        // For iOS HealthKit - directly request permissions
+        if (kDebugMode) {
+          print('Requesting HealthKit permissions...');
+        }
+        
+        final result = await _healthClient!.requestAuthorization(permissions);
 
         if (kDebugMode) {
           print('HealthKit permissions granted: $result');
@@ -300,13 +239,9 @@ class HealthConnectService {
       if (kDebugMode) {
         print('Error requesting health permissions: $e');
         print('Error type: ${e.runtimeType}');
-        if (e.toString().contains('Health Connect')) {
-          print(
-            'Health Connect specific error - this might be expected in debug mode',
-          );
-        }
-        // Don't simulate success in debug mode - let the error bubble up
       }
+      
+      // Re-throw the error so the UI can handle it appropriately
       rethrow;
     }
   }

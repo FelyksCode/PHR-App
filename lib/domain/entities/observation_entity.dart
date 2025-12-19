@@ -109,4 +109,39 @@ class ObservationEntity {
   String toString() {
     return 'ObservationEntity(id: $id, type: $type, value: $value, unit: $unit, timestamp: $timestamp)';
   }
+
+  // JSON serialization
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type.name,
+      'value': value,
+      'unit': unit,
+      'timestamp': timestamp.toIso8601String(),
+      'patientId': patientId,
+      'deviceInfo': deviceInfo,
+      'notes': notes,
+      'source': source.name,
+    };
+  }
+
+  factory ObservationEntity.fromJson(Map<String, dynamic> json) {
+    return ObservationEntity(
+      id: json['id'] as String,
+      type: ObservationType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => ObservationType.bodyWeight,
+      ),
+      value: (json['value'] as num).toDouble(),
+      unit: json['unit'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      patientId: json['patientId'] as String?,
+      deviceInfo: json['deviceInfo'] as String?,
+      notes: json['notes'] as String?,
+      source: DataSource.values.firstWhere(
+        (e) => e.name == json['source'],
+        orElse: () => DataSource.manual,
+      ),
+    );
+  }
 }

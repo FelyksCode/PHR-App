@@ -54,30 +54,65 @@ class AuthRepository {
   }
 
   // Auto-login using stored credentials
-  Future<AuthState> autoLogin() async {
+  Future<AuthState> autoLogin({bool skipNetworkValidation = false}) async {
     try {
       final storedState = await SecureStorageService.getStoredAuthState();
       
       if (!storedState.isAuthenticated || storedState.accessToken == null) {
         return AuthState.initial;
       }
-      
+
+      // If offline or explicitly skipping validation, trust stored state
+      if (skipNetworkValidation) {
+        return storedState.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          error: 'offline',
+        );
+      }
+
       // Validate token by fetching user data
       final user = await getCurrentUser();
       
-      return AuthState(
+      return storedState.copyWith(
         user: user,
-        accessToken: storedState.accessToken,
         isAuthenticated: true,
+        isLoading: false,
+        error: null,
       );
-    } on AuthException {
-      // Token is invalid, clear storage and return unauthenticated state
-      await SecureStorageService.clearAll();
-      return AuthState.initial;
+    } on AuthException catch (e) {
+      // If we're offline but have a stored token+user, allow offline auth
+      final storedState = await SecureStorageService.getStoredAuthState();
+      final isOffline = _isOfflineMessage(e.message);
+      final isInvalid = e.message.contains('Token expired') || e.message.contains('invalid');
+
+      if (isOffline && storedState.isAuthenticated && storedState.user != null) {
+        return storedState.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          error: 'offline',
+        );
+      }
+
+      if (isInvalid) {
+        await SecureStorageService.clearAll();
+        return AuthState.initial;
+      }
+
+      // Unknown error: keep stored token to avoid logging user out unexpectedly
+      return storedState.copyWith(
+        isAuthenticated: storedState.isAuthenticated,
+        isLoading: false,
+        error: e.message,
+      );
     } catch (e) {
-      // Other errors, clear storage to be safe
-      await SecureStorageService.clearAll();
-      return AuthState.initial;
+      // On unexpected errors, fall back to stored auth state without clearing it
+      final storedState = await SecureStorageService.getStoredAuthState();
+      return storedState.copyWith(
+        isAuthenticated: storedState.isAuthenticated,
+        isLoading: false,
+        error: e.toString(),
+      );
     }
   }
 
@@ -94,5 +129,14 @@ class AuthRepository {
   // Get stored auth state without server validation
   Future<AuthState> getStoredAuthState() async {
     return await SecureStorageService.getStoredAuthState();
+  }
+
+  bool _isOfflineMessage(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('network error') ||
+        lower.contains('connection timeout') ||
+        lower.contains('receive timeout') ||
+        lower.contains('offline') ||
+        lower.contains('socketexception');
   }
 }

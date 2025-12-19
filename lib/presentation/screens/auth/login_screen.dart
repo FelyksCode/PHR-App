@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phr_app/l10n/app_localizations.dart';
 import '../../../core/validators/validators.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../data/models/auth_models.dart';
@@ -38,6 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authProvider);
     final obscurePassword = ref.watch(obscurePasswordProvider);
 
@@ -71,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 
                 // App Title
                 Text(
-                  'Personal Health Record',
+                  l10n.loginTitle,
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1C1C1E),
@@ -80,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 8),
                 
                 Text(
-                  'Welcome back',
+                  l10n.welcomeBack,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: const Color(0xFF8E8E93),
                   ),
@@ -111,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             _passwordFocusNode.requestFocus();
                           },
                           decoration: InputDecoration(
-                            labelText: 'Email address',
+                            labelText: l10n.emailAddress,
                             labelStyle: TextStyle(color: Colors.grey[600]),
                             filled: true,
                             fillColor: const Color(0xFFF2F2F7),
@@ -147,7 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           validator: Validators.password,
                           onFieldSubmitted: (_) => _handleLogin(),
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: l10n.password,
                             labelStyle: TextStyle(color: Colors.grey[600]),
                             filled: true,
                             fillColor: const Color(0xFFF2F2F7),
@@ -209,9 +211,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                 )
-                              : const Text(
-                                  'Log In',
-                                  style: TextStyle(
+                              : Text(
+                                  l10n.logIn,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -234,7 +236,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       border: Border.all(color: Colors.red[200]!),
                     ),
                     child: Text(
-                      'Error: ${authState.error}',
+                      '${l10n.error}: ${authState.error}',
                       style: TextStyle(color: Colors.red[700], fontSize: 14),
                     ),
                   ),
@@ -251,13 +253,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.info_outline, color: Color(0xFF007AFF), size: 20),
-                          SizedBox(width: 8),
+                          const Icon(Icons.info_outline, color: Color(0xFF007AFF), size: 20),
+                          const SizedBox(width: 8),
                           Text(
-                            'Demo credentials',
-                            style: TextStyle(
+                            l10n.demoCredentials,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1C1C1E),
                               fontSize: 16,
@@ -272,21 +274,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: const Color(0xFFF2F2F7),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Email: john@example.com',
-                              style: TextStyle(
+                              l10n.demoEmail,
+                              style: const TextStyle(
                                 color: Color(0xFF1C1C1E),
                                 fontFamily: 'monospace',
                                 fontSize: 14,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              'Password: securepassword123',
-                              style: TextStyle(
+                              l10n.demoPassword,
+                              style: const TextStyle(
                                 color: Color(0xFF1C1C1E),
                                 fontFamily: 'monospace',
                                 fontSize: 14,

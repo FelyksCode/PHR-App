@@ -1,4 +1,5 @@
 import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 import '../domain/repositories/health_sync_repository.dart';
@@ -11,6 +12,7 @@ class HealthSyncService {
   // WorkManager task identifiers
   static const String syncTaskName = 'health_data_sync';
   static const String syncTaskId = 'health_sync_task';
+  static const String _periodicSyncKey = 'periodic_sync_enabled';
   
   HealthSyncService(this._repository);
   
@@ -33,6 +35,10 @@ class HealthSyncService {
           requiresBatteryNotLow: true,
         ),
       );
+      
+      // Store the enabled state
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_periodicSyncKey, true);
     }
   }
   
@@ -40,6 +46,25 @@ class HealthSyncService {
   Future<void> cancelPeriodicSync() async {
     if (Platform.isAndroid) {
       await Workmanager().cancelByUniqueName(syncTaskId);
+      
+      // Store the disabled state
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_periodicSyncKey, false);
+    }
+  }
+  
+  /// Check if periodic sync is currently enabled
+  Future<bool> isPeriodicSyncEnabled() async {
+    if (!Platform.isAndroid) {
+      return false;
+    }
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_periodicSyncKey) ?? false;
+    } catch (e) {
+      print('Error checking periodic sync status: $e');
+      return false;
     }
   }
   

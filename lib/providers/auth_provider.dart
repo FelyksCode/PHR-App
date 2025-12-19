@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/auth_models.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/services/auth_service.dart';
+import '../presentation/providers/offline_mode_provider.dart';
+import '../presentation/providers/connectivity_provider.dart';
 
 // Service providers
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -16,17 +18,19 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 // Auth state provider
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
+  final Ref _ref;
   
-  AuthNotifier(this._authRepository) : super(AuthState.initial) {
+  AuthNotifier(this._authRepository, this._ref) : super(AuthState.initial) {
     _checkAuthStatus();
   }
   
   // Check if user is already authenticated on app start
   Future<void> _checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    
+
+    final isOffline = !_ref.read(connectivityProvider) || _ref.read(offlineModeProvider);
     try {
-      final authState = await _authRepository.autoLogin();
+      final authState = await _authRepository.autoLogin(skipNetworkValidation: isOffline);
       state = authState;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -69,6 +73,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Refresh user data
   Future<void> refreshUser() async {
     if (!state.isAuthenticated) return;
+    if (_ref.read(offlineModeProvider)) return; // skip network refresh when offline
     
     try {
       final user = await _authRepository.getCurrentUser();
@@ -84,7 +89,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(authRepository);
+  return AuthNotifier(authRepository, ref);
 });
 
 // Login form providers

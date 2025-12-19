@@ -37,4 +37,7 @@ const _$ObservationTypeEnumMap = {
   ObservationType.bloodPressureSystolic: 'bloodPressureSystolic',
   ObservationType.bloodPressureDiastolic: 'bloodPressureDiastolic',
   ObservationType.oxygenSaturation: 'oxygenSaturation',
+  ObservationType.heartRate: 'heartRate',
+  ObservationType.respiratoryRate: 'respiratoryRate',
+  ObservationType.steps: 'steps',
 };
