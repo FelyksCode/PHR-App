@@ -66,6 +66,33 @@ class ObservationService extends ChangeNotifier {
     }
   }
 
+  /// Submit a blood pressure panel observation with systolic and diastolic components
+  /// Uses FHIR component-based structure for better compliance
+  Future<bool> submitBloodPressurePanelObservation({
+    required double systolic,
+    required double diastolic,
+    String? notes,
+    DataSource source = DataSource.manual,
+  }) async {
+    try {
+      final success = await _apiService.submitBloodPressurePanelObservation(
+        systolic: systolic,
+        diastolic: diastolic,
+        notes: notes,
+        source: source,
+      );
+      if (success) {
+        // Refresh providers after successful submission
+        _refreshObservationsCallback?.call();
+        _refreshConditionsCallback?.call();
+      }
+      return success;
+    } catch (e) {
+      debugPrint('Error submitting blood pressure panel: $e');
+      return false;
+    }
+  }
+
   Future<List<ObservationEntity>> getObservations() async {
     try {
       return await _getUseCase.execute();
@@ -87,6 +114,6 @@ class ObservationService extends ChangeNotifier {
 
 // Riverpod provider for ObservationService
 final observationServiceProvider = Provider<ObservationService>((ref) {
-  final apiService = ApiService();
+  final apiService = ref.read(apiServiceProvider);
   return ObservationService(apiService);
 });

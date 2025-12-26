@@ -106,7 +106,7 @@ class CustomDropdown<T> extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           items: items.map((item) {
             return DropdownMenuItem<T>(
               value: item,
@@ -157,7 +157,7 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha:0.3),
             child: Center(
               child: Card(
                 child: Padding(

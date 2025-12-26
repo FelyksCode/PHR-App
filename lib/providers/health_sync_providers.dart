@@ -1,16 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/errors/app_error.dart';
+import '../core/errors/app_error_logger.dart';
 import '../domain/repositories/health_sync_repository.dart';
 import '../domain/entities/health_sync_entity.dart';
 import '../domain/entities/observation_entity.dart';
 import '../data/repositories/health_sync_repository_impl.dart';
 import '../services/health_sync_service.dart';
 import '../services/api_service.dart';
-
-// Provider for ApiService
-final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService();
-});
 
 // Provider for HealthSyncRepository
 final healthSyncRepositoryProvider = Provider<HealthSyncRepository>((ref) {
@@ -53,7 +50,18 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       }
       return granted;
     } catch (e) {
-      print('Error requesting permissions: $e');
+      final appError = e is AppError
+          ? e
+          : UnknownError(
+              'Error requesting permissions',
+              code: 'HEALTH_SYNC_PERMISSIONS_ERROR',
+              originalException: e,
+            );
+      AppErrorLogger.logError(
+        appError,
+        source: 'HealthSyncNotifier.requestPermissions',
+        severity: ErrorSeverity.medium,
+      );
       return false;
     }
   }
@@ -90,7 +98,18 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
     try {
       await _service.initializeBackgroundSync();
     } catch (e) {
-      print('Error initializing background sync: $e');
+      final appError = e is AppError
+          ? e
+          : UnknownError(
+              'Error initializing background sync',
+              code: 'HEALTH_SYNC_INIT_BG_ERROR',
+              originalException: e,
+            );
+      AppErrorLogger.logError(
+        appError,
+        source: 'HealthSyncNotifier.initializeBackgroundSync',
+        severity: ErrorSeverity.medium,
+      );
     }
   }
   
@@ -99,7 +118,18 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
     try {
       await _service.schedulePeriodicSync(interval: interval);
     } catch (e) {
-      print('Error scheduling periodic sync: $e');
+      final appError = e is AppError
+          ? e
+          : UnknownError(
+              'Error scheduling periodic sync',
+              code: 'HEALTH_SYNC_SCHEDULE_ERROR',
+              originalException: e,
+            );
+      AppErrorLogger.logError(
+        appError,
+        source: 'HealthSyncNotifier.schedulePeriodicSync',
+        severity: ErrorSeverity.medium,
+      );
     }
   }
   
@@ -108,7 +138,18 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
     try {
       await _service.cancelPeriodicSync();
     } catch (e) {
-      print('Error canceling periodic sync: $e');
+      final appError = e is AppError
+          ? e
+          : UnknownError(
+              'Error canceling periodic sync',
+              code: 'HEALTH_SYNC_CANCEL_ERROR',
+              originalException: e,
+            );
+      AppErrorLogger.logError(
+        appError,
+        source: 'HealthSyncNotifier.cancelPeriodicSync',
+        severity: ErrorSeverity.medium,
+      );
     }
   }
   
@@ -117,7 +158,18 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
     try {
       return await _service.isPeriodicSyncEnabled();
     } catch (e) {
-      print('Error checking periodic sync status: $e');
+      final appError = e is AppError
+          ? e
+          : UnknownError(
+              'Error checking periodic sync status',
+              code: 'HEALTH_SYNC_STATUS_ERROR',
+              originalException: e,
+            );
+      AppErrorLogger.logError(
+        appError,
+        source: 'HealthSyncNotifier.isPeriodicSyncEnabled',
+        severity: ErrorSeverity.low,
+      );
       return false;
     }
   }

@@ -2,6 +2,8 @@ import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
+import '../core/errors/app_error.dart';
+import '../core/errors/app_error_logger.dart';
 import '../domain/repositories/health_sync_repository.dart';
 import '../domain/entities/health_sync_entity.dart';
 import '../domain/entities/observation_entity.dart';
@@ -19,7 +21,7 @@ class HealthSyncService {
   /// Initialize background sync (Android only)
   Future<void> initializeBackgroundSync() async {
     if (Platform.isAndroid) {
-      await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+      await Workmanager().initialize(callbackDispatcher);
     }
   }
   
@@ -62,8 +64,17 @@ class HealthSyncService {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_periodicSyncKey) ?? false;
-    } catch (e) {
-      print('Error checking periodic sync status: $e');
+    } catch (e, st) {
+      AppErrorLogger.logError(
+        UnknownError(
+          'Error checking periodic sync status',
+          code: 'HEALTH_SYNC_STATUS_ERROR',
+          stackTrace: st,
+          originalException: e,
+        ),
+        source: 'HealthSyncService.isPeriodicSyncEnabled',
+        severity: ErrorSeverity.low,
+      );
       return false;
     }
   }
@@ -156,8 +167,17 @@ class HealthSyncService {
         return SyncResult.failed('Failed to submit data to backend');
       }
       
-    } catch (e) {
-      print('Error during health sync: $e');
+    } catch (e, st) {
+      AppErrorLogger.logError(
+        UnknownError(
+          'Error during health sync',
+          code: 'HEALTH_SYNC_PERFORM_ERROR',
+          stackTrace: st,
+          originalException: e,
+        ),
+        source: 'HealthSyncService.performSync',
+        severity: ErrorSeverity.medium,
+      );
       
       // Update status to failed
       final currentStatus = await _repository.getSyncStatus();
@@ -241,8 +261,6 @@ enum SyncResultType {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    print("Background sync task executed: $task");
-    
     try {
       // This would need to be set up with dependency injection
       // For now, just return success
@@ -253,8 +271,17 @@ void callbackDispatcher() {
       // 4. Return the appropriate result
       
       return Future.value(true);
-    } catch (e) {
-      print("Background sync failed: $e");
+    } catch (e, st) {
+      AppErrorLogger.logError(
+        UnknownError(
+          'Background sync failed',
+          code: 'HEALTH_SYNC_BG_ERROR',
+          stackTrace: st,
+          originalException: e,
+        ),
+        source: 'callbackDispatcher',
+        severity: ErrorSeverity.medium,
+      );
       return Future.value(false);
     }
   });

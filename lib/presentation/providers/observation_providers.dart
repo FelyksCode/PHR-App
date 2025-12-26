@@ -7,9 +7,6 @@ import 'cache_providers.dart';
 import 'offline_mode_provider.dart';
 import 'connectivity_provider.dart';
 
-// Providers
-final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
-
 final healthDataRepositoryProvider = Provider<HealthDataRepositoryImpl>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   return HealthDataRepositoryImpl(apiService);
@@ -87,7 +84,7 @@ class LatestObservationsNotifier extends StateNotifier<AsyncValue<List<Map<Strin
 
   Future<void> loadLatestObservations() async {
     if (_isOffline()) {
-      print('📴 Offline mode: skip fetching observations, use cache.');
+      // Offline mode: skip fetching observations, use cache.
       final cached = await _cache.getCachedObservations();
       if (mounted) {
         state = AsyncValue.data(cached);

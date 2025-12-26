@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/condition_entity.dart';
 import '../../domain/usecases/condition_usecases.dart';
+import '../../services/api_service.dart';
 import 'observation_providers.dart'; // Import for healthDataRepositoryProvider
 import 'cache_providers.dart';
 import 'offline_mode_provider.dart';
@@ -70,7 +71,7 @@ class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String,
 
   Future<void> loadLatestConditions() async {
     if (_isOffline()) {
-      print('📴 Offline mode: skip fetching conditions, use cache.');
+      // Offline mode: skip fetching conditions, use cache.
       final cached = await _cache.getCachedConditions();
       state = AsyncValue.data(cached);
       return;

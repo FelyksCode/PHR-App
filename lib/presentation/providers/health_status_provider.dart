@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'observation_providers.dart';
 import 'offline_mode_provider.dart';
 import 'connectivity_provider.dart';
+import '../../services/api_service.dart';
 
 /// Fetches backend/FHIR health status from the /health endpoint.
 final healthStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {

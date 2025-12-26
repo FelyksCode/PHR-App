@@ -81,7 +81,7 @@ class ExportService {
       children: [
         pw.Text('Vital Signs', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
-        pw.Table.fromTextArray(
+        pw.TableHelper.fromTextArray(
           headers: headers,
           data: data,
           headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -101,7 +101,6 @@ class ExportService {
 
     final headers = ['Category', 'Severity', 'Description', 'Timestamp'];
     final data = conditions.map((c) {
-      print(c);
       final cat = c['condition']?.toString() ?? '-';
       final sev = c['severity']?.toString() ?? '-';
       final desc = c['description']?.toString() ?? '-';
@@ -114,7 +113,7 @@ class ExportService {
       children: [
         pw.Text('Conditions', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
-        pw.Table.fromTextArray(
+        pw.TableHelper.fromTextArray(
           headers: headers,
           data: data,
           headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),

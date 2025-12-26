@@ -57,6 +57,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Future.delayed(const Duration(milliseconds: 100), () {
           ref.read(authProvider.notifier).clearError();
         });
+      } else if (next.isAuthenticated && !next.isLoading) {
+        // Navigate to dashboard after successful login
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
+        } else {
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        }
       }
     });
 

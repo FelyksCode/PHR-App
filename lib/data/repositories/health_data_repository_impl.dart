@@ -45,6 +45,15 @@ class HealthDataRepositoryImpl implements HealthDataRepository {
   }
 
   @override
+  Future<bool> submitFhirBundle(Map<String, dynamic> bundle) async {
+    try {
+      return await _apiService.submitFhirBundle(bundle);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
   Future<List<ObservationEntity>> getObservations() async {
     return List.from(_observationsCache);
   }

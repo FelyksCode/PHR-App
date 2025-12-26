@@ -19,7 +19,7 @@ class OfflineQueueService {
   
   void _setupConnectivityListener() {
     _connectivity.onConnectivityChanged.listen((result) async {
-      if (result != ConnectivityResult.none) {
+      if (result.isNotEmpty && result.first != ConnectivityResult.none) {
         await syncQueuedData();
       }
     });
@@ -29,7 +29,7 @@ class OfflineQueueService {
   Future<bool> isOnline() async {
     final connectivityResult = await _connectivity.checkConnectivity();
     // Also verify with a quick ping-like check
-    if (connectivityResult == ConnectivityResult.none) {
+    if (connectivityResult.isEmpty || connectivityResult.contains(ConnectivityResult.none)) {
       return false;
     }
     // If connectivity reports we're online, return true

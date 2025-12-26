@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:phr_app/core/errors/api_error_mapper.dart';
 import '../models/auth_models.dart';
 import '../../core/network/api_client.dart';
+import '../../core/errors/app_error.dart';
+import '../../core/errors/app_error_logger.dart';
 
 class AuthService {
   final Dio _dio;
@@ -9,19 +12,77 @@ class AuthService {
     _setupInterceptors();
   }
 
+  AppError _mapLoginErrorResponse(Response response) {
+    final status = response.statusCode;
+    if (status == 401) {
+      return UnauthorizedError(
+        'Invalid email or password',
+        code: 'AUTH_INVALID_CREDENTIALS',
+        shouldLogout: false,
+      );
+    }
+    if (status == 422) {
+      return ValidationError(
+        'Invalid input format',
+        code: 'AUTH_INPUT_INVALID',
+        fieldErrors: {},
+      );
+    }
+    if (status != null && status >= 500) {
+      return ServerError(
+        'Server error during login',
+        code: 'AUTH_SERVER_ERROR',
+        statusCode: status,
+      );
+    }
+    return UnknownError(
+      'Login failed (status: ${status ?? 'unknown'}): ${response.statusMessage ?? 'unknown error'}',
+      code: 'AUTH_LOGIN_FAILED',
+    );
+  }
+
+  AppError _mapMeErrorResponse(Response response) {
+    final status = response.statusCode;
+    if (status == 401) {
+      return UnauthorizedError(
+        'Token expired or invalid',
+        code: 'AUTH_TOKEN_INVALID',
+        shouldLogout: true,
+      );
+    }
+    if (status != null && status >= 500) {
+      return ServerError(
+        'Server error while fetching user',
+        code: 'AUTH_ME_SERVER_ERROR',
+        statusCode: status,
+      );
+    }
+    return UnknownError(
+      'Failed to get user info (status: ${status ?? 'unknown'}): ${response.statusMessage ?? 'unknown error'}',
+      code: 'AUTH_ME_FAILED',
+    );
+  }
+
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          print('🔗 Auth Service Request: ${options.method} ${options.path}');
           handler.next(options);
         },
         onError: (error, handler) {
           // Handle common HTTP errors
           if (error.response?.statusCode == 401) {
-            print('🔒 Auth Service: 401 Unauthorized');
-            // Token expired or invalid - this will be handled by AuthRepository
+            AppErrorLogger.logError(
+              UnauthorizedError(
+                'Auth service unauthorized',
+                code: 'AUTH_SERVICE_401',
+                shouldLogout: true,
+              ),
+              source: 'AuthService.onError',
+              severity: ErrorSeverity.medium,
+            );
           }
+          // Pass through for higher-level handling
           handler.next(error);
         },
       ),
@@ -33,7 +94,17 @@ class AuthService {
     try {
       final response = await _dio.get('/');
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.logError(
+        UnknownError(
+          'Auth service connectivity check failed',
+          code: 'AUTH_CONNECTIVITY_FAILED',
+          stackTrace: st,
+          originalException: e,
+        ),
+        source: 'AuthService.testConnection',
+        severity: ErrorSeverity.medium,
+      );
       return false;
     }
   }
@@ -52,24 +123,36 @@ class AuthService {
 
       if (response.statusCode == 200) {
         return LoginResponse.fromJson(response.data);
-      } else {
-        throw AuthException('Login failed: ${response.statusMessage}');
       }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw AuthException('Invalid email or password');
-      } else if (e.response?.statusCode == 422) {
-        throw AuthException('Invalid input format');
-      } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
-        throw AuthException('Connection timeout. Please try again.');
-      } else if (e.type == DioExceptionType.connectionError) {
-        throw AuthException('Network error. Please check your internet connection.');
-      } else {
-        throw AuthException('Login failed: ${e.message}');
-      }
-    } catch (e) {
-      throw AuthException('Unexpected error: $e');
+
+      final appError = _mapLoginErrorResponse(response);
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.login',
+        severity: ErrorSeverity.medium,
+      );
+      throw appError;
+    } on DioException catch (e, st) {
+      final appError = ApiErrorMapper.fromException(e, stackTrace: st);
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.login',
+        severity: ErrorSeverity.medium,
+      );
+      throw appError;
+    } catch (e, st) {
+      final appError = UnknownError(
+        'Unexpected login error',
+        code: 'LOGIN_UNEXPECTED',
+        stackTrace: st,
+        originalException: e,
+      );
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.login',
+        severity: ErrorSeverity.high,
+      );
+      throw appError;
     }
   }
 
@@ -88,25 +171,50 @@ class AuthService {
       if (response.statusCode == 200) {
         try {
           return User.fromJson(response.data as Map<String, dynamic>);
-        } catch (e) {
-          throw AuthException('Failed to parse user data: $e');
+        } catch (e, st) {
+          final appError = UnknownError(
+            'Failed to parse user data',
+            code: 'USER_PARSE_ERROR',
+            stackTrace: st,
+            originalException: e,
+          );
+          AppErrorLogger.logError(
+            appError,
+            source: 'AuthService.getMe',
+            severity: ErrorSeverity.medium,
+          );
+          throw appError;
         }
-      } else {
-        throw AuthException('Failed to get user info: ${response.statusMessage}');
       }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw AuthException('Token expired or invalid');
-      } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
-        throw AuthException('Connection timeout. Please try again.');
-      } else if (e.type == DioExceptionType.connectionError) {
-        throw AuthException('Network error. Please check your internet connection.');
-      } else {
-        throw AuthException('Failed to get user info: ${e.message}');
-      }
-    } catch (e) {
-      throw AuthException('Unexpected error: $e');
+
+      final appError = _mapMeErrorResponse(response);
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.getMe',
+        severity: ErrorSeverity.medium,
+      );
+      throw appError;
+    } on DioException catch (e, st) {
+      final appError = ApiErrorMapper.fromException(e, stackTrace: st);
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.getMe',
+        severity: ErrorSeverity.medium,
+      );
+      throw appError;
+    } catch (e, st) {
+      final appError = UnknownError(
+        'Unexpected getMe error',
+        code: 'GET_ME_UNEXPECTED',
+        stackTrace: st,
+        originalException: e,
+      );
+      AppErrorLogger.logError(
+        appError,
+        source: 'AuthService.getMe',
+        severity: ErrorSeverity.high,
+      );
+      throw appError;
     }
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/offline_queue_service.dart';
-import 'observation_providers.dart';
+import '../../services/api_service.dart';
 
 final offlineQueueServiceProvider = Provider<OfflineQueueService>((ref) {
   final apiService = ref.watch(apiServiceProvider);

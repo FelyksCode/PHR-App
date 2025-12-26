@@ -12,6 +12,8 @@ class ObservationModel extends ObservationEntity {
     required super.value,
     required super.unit,
     required super.timestamp,
+    super.category,
+    super.source,
     super.patientId,
     super.deviceInfo,
     super.notes,
@@ -20,7 +22,6 @@ class ObservationModel extends ObservationEntity {
   factory ObservationModel.fromJson(Map<String, dynamic> json) =>
       _$ObservationModelFromJson(json);
 
-  Map<String, dynamic> toJson() => _$ObservationModelToJson(this);
 
   factory ObservationModel.fromEntity(ObservationEntity entity) {
     return ObservationModel(
@@ -29,6 +30,8 @@ class ObservationModel extends ObservationEntity {
       value: entity.value,
       unit: entity.unit,
       timestamp: entity.timestamp,
+      category: entity.category,
+      source: entity.source,
       patientId: entity.patientId,
       deviceInfo: entity.deviceInfo,
       notes: entity.notes,
@@ -39,6 +42,9 @@ class ObservationModel extends ObservationEntity {
     required ObservationType type,
     required double value,
     required String unit,
+    ObservationCategory? category,
+    DataSource source = DataSource.manual,
+    DateTime? timestamp,
     String? patientId,
     String? deviceInfo,
     String? notes,
@@ -48,7 +54,9 @@ class ObservationModel extends ObservationEntity {
       type: type,
       value: value,
       unit: unit,
-      timestamp: DateTime.now(),
+      timestamp: timestamp ?? DateTime.now(),
+      category: category ?? ObservationCategory.vitalSigns,
+      source: source,
       patientId: patientId,
       deviceInfo: deviceInfo,
       notes: notes,
@@ -57,24 +65,6 @@ class ObservationModel extends ObservationEntity {
 
   /// Convert to FHIR Observation resource format for backend
   Map<String, dynamic> toFhirJson() {
-    final Map<String, String> loincCodes = {
-      'body_weight': '29463-7',
-      'body_height': '8302-2', 
-      'body_temperature': '8310-5',
-      'blood_pressure_systolic': '8480-6',
-      'blood_pressure_diastolic': '8462-4',
-      'oxygen_saturation': '2708-6',
-    };
-
-    final Map<String, String> units = {
-      'body_weight': 'kg',
-      'body_height': 'cm',
-      'body_temperature': 'Cel',
-      'blood_pressure_systolic': 'mm[Hg]',
-      'blood_pressure_diastolic': 'mm[Hg]',
-      'oxygen_saturation': '%',
-    };
-
     return {
       'resourceType': 'Observation',
       'id': id,
@@ -84,8 +74,8 @@ class ObservationModel extends ObservationEntity {
           'coding': [
             {
               'system': 'http://terminology.hl7.org/CodeSystem/observation-category',
-              'code': 'vital-signs',
-              'display': 'Vital Signs'
+              'code': category.code,
+              'display': category.display
             }
           ]
         }
@@ -94,7 +84,7 @@ class ObservationModel extends ObservationEntity {
         'coding': [
           {
             'system': 'http://loinc.org',
-            'code': loincCodes[type.name] ?? '',
+            'code': type.loincCode,
             'display': type.displayName,
           }
         ]
@@ -105,12 +95,116 @@ class ObservationModel extends ObservationEntity {
       'effectiveDateTime': timestamp.toIso8601String(),
       'valueQuantity': {
         'value': value,
-        'unit': units[type.name] ?? unit,
+        'unit': unit,
         'system': 'http://unitsofmeasure.org',
-        'code': units[type.name] ?? unit,
+        'code': type.standardUnit,
       },
       if (deviceInfo != null) 'device': {'display': deviceInfo},
       if (notes != null) 'note': [{'text': notes}],
+      'meta': {
+        'tag': [
+          {
+            'system': 'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
+            'code': source.name,
+            'display': source.displayName,
+          }
+        ]
+      },
+    };
+  }
+
+  /// Create a Blood Pressure Panel observation with systolic and diastolic components
+  /// Returns a FHIR observation with the panel structure (code 35094-2)
+  static Map<String, dynamic> createBloodPressurePanelFhir({
+    required double systolic,
+    required double diastolic,
+    required String patientId,
+    DateTime? timestamp,
+    String? notes,
+    DataSource source = DataSource.manual,
+    ObservationCategory? category,
+  }) {
+    final effectiveTime = timestamp ?? DateTime.now();
+    final categoryVal = category ?? ObservationCategory.vitalSigns;
+
+    return {
+      'resourceType': 'Observation',
+      'id': const Uuid().v4(),
+      'status': 'final',
+      'category': [
+        {
+          'coding': [
+            {
+              'system': 'http://terminology.hl7.org/CodeSystem/observation-category',
+              'code': categoryVal.code,
+              'display': categoryVal.display
+            }
+          ]
+        }
+      ],
+      'code': {
+        'coding': [
+          {
+            'system': 'http://loinc.org',
+            'code': '35094-2',
+            'display': 'Blood Pressure Panel'
+          }
+        ],
+        'text': 'Blood Pressure Panel'
+      },
+      'subject': {
+        'reference': 'Patient/$patientId'
+      },
+      'effectiveDateTime': effectiveTime.toIso8601String(),
+      'component': [
+        {
+          'code': {
+            'coding': [
+              {
+                'system': 'http://loinc.org',
+                'code': '8480-6',
+                'display': 'Systolic Blood Pressure'
+              }
+            ]
+          },
+          'valueQuantity': {
+            'value': systolic,
+            'unit': 'mmHg',
+            'system': 'http://unitsofmeasure.org',
+            'code': 'mm[Hg]'
+          }
+        },
+        {
+          'code': {
+            'coding': [
+              {
+                'system': 'http://loinc.org',
+                'code': '8462-4',
+                'display': 'Diastolic Blood Pressure'
+              }
+            ]
+          },
+          'valueQuantity': {
+            'value': diastolic,
+            'unit': 'mmHg',
+            'system': 'http://unitsofmeasure.org',
+            'code': 'mm[Hg]'
+          }
+        }
+      ],
+      if (notes != null)
+        'note': [
+          {'text': notes}
+        ],
+      'meta': {
+        'tag': [
+          {
+            'system': 'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
+            'code': source.name,
+            'display': source.displayName,
+          }
+        ]
+      },
     };
   }
 }

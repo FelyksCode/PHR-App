@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:convert';
 
+import '../../core/errors/app_error.dart';
+import '../../core/errors/app_error_logger.dart';
 import '../../domain/repositories/health_sync_repository.dart';
 import '../../domain/entities/health_sync_entity.dart';
 import '../../domain/entities/observation_entity.dart';
@@ -52,7 +54,7 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
       
       return false;
     } catch (e) {
-      print('Error requesting health permissions: $e');
+      // print('Error requesting health permissions: $e');
       return false;
     }
   }
@@ -67,7 +69,15 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
           health_pkg.HealthDataAccess.READ).toList(),
       ) ?? false;
     } catch (e) {
-      print('Error checking health permissions: $e');
+      AppErrorLogger.logError(
+        UnknownError(
+          'Failed to check health permissions',
+          code: 'HEALTH_PERMISSION_CHECK_FAILED',
+          originalException: e,
+        ),
+        source: 'HealthSyncRepository.hasPermissions',
+        severity: ErrorSeverity.medium,
+      );
       return false;
     }
   }
@@ -88,7 +98,15 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
 
       return _convertToHealthDataPoints(healthData);
     } catch (e) {
-      print('Error getting health data: $e');
+      AppErrorLogger.logError(
+        UnknownError(
+          'Failed to get health data',
+          code: 'HEALTH_DATA_FETCH_FAILED',
+          originalException: e,
+        ),
+        source: 'HealthSyncRepository.getHealthData',
+        severity: ErrorSeverity.high,
+      );
       return [];
     }
   }
@@ -145,9 +163,30 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
         totalSyncedObservations: 0,
         errorMessage: null,
       );
-    } catch (e) {
-      print('Error getting sync status: $e');
-      throw Exception('Failed to get sync status: $e');
+    } catch (e, st) {
+      // Log but don't throw - graceful degradation for sync status retrieval
+      AppErrorLogger.logError(
+        UnknownError(
+          'Failed to retrieve sync status',
+          code: 'SYNC_STATUS_ERROR',
+          stackTrace: st,
+          originalException: e,
+        ),
+        source: 'HealthSyncRepository.getSyncStatus',
+      );
+      
+      // Return default status on error
+      return const HealthSyncEntity(
+        status: SyncStatus.idle,
+        lastSyncTime: null,
+        permittedDataTypes: [
+          HealthDataType.heartRate,
+          HealthDataType.bloodPressureSystolic,
+          HealthDataType.steps,
+        ],
+        totalSyncedObservations: 0,
+        errorMessage: null,
+      );
     }
   }
 
@@ -167,9 +206,22 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
       if (status.lastSyncTime != null) {
         await prefs.setInt(_lastSyncKey, status.lastSyncTime!.millisecondsSinceEpoch);
       }
-    } catch (e) {
-      print('Error updating sync status: $e');
-      throw Exception('Failed to update sync status: $e');
+    } catch (e, st) {
+      // Log and throw as a structured AppError
+      final error = UnknownError(
+        'Failed to update sync status',
+        code: 'SYNC_STATUS_UPDATE_ERROR',
+        stackTrace: st,
+        originalException: e,
+      );
+      
+      AppErrorLogger.logError(
+        error,
+        source: 'HealthSyncRepository.updateSyncStatus',
+        severity: ErrorSeverity.high,
+      );
+      
+      throw error;
     }
   }
 
@@ -179,11 +231,35 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
       for (final observation in observations) {
         final model = ObservationModel.fromEntity(observation);
         final success = await _apiService.submitObservation(model);
-        if (!success) return false;
+        if (!success) {
+          AppErrorLogger.logError(
+            ServerError(
+              'Failed to submit observation: ${observation.id}',
+              code: 'OBSERVATION_SUBMISSION_FAILED',
+            ),
+            source: 'HealthSyncRepository.submitSyncedObservations',
+          );
+          return false;
+        }
       }
       return true;
-    } catch (e) {
-      print('Error submitting synced observations: $e');
+    } catch (e, st) {
+      final error = switch (e) {
+        AppError appError => appError,
+        _ => UnknownError(
+          'Error submitting observations: ${e.toString()}',
+          code: 'OBSERVATION_SUBMISSION_ERROR',
+          stackTrace: st,
+          originalException: e,
+        ),
+      };
+      
+      AppErrorLogger.logError(
+        error,
+        source: 'HealthSyncRepository.submitSyncedObservations',
+        severity: ErrorSeverity.high,
+      );
+      
       return false;
     }
   }

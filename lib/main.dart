@@ -8,9 +8,11 @@ import 'core/constants/api_constants.dart';
 import 'core/network/api_client.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
-import 'presentation/screens/heart_rate_monitor_screen.dart';
-import 'presentation/screens/main_shell.dart';
-import 'presentation/screens/permissions_screen.dart';
+import 'presentation/screens/health/heart_rate_monitor_screen.dart';
+import 'presentation/screens/dashboard/main_shell.dart';
+import 'presentation/screens/settings/permissions_screen.dart';
+import 'presentation/screens/vendors/vendor_selection_screen.dart';
+import 'presentation/screens/observations/health_observation_list_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/health_connect_service.dart';
 
@@ -116,6 +118,8 @@ class PHRApp extends ConsumerWidget {
         '/permissions': (context) => const PermissionsScreen(),
         '/dashboard': (context) => const MainShell(),
         '/heart-rate-monitor': (context) => const HeartRateMonitorScreen(),
+        '/vendors': (context) => const VendorSelectionScreen(),
+        '/observations': (context) => const HealthObservationListScreen(),
       },
     );
   }
