@@ -5,29 +5,40 @@ import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/notification_reminders_provider.dart';
 import '../../providers/reminder_creation_provider.dart';
-
+import '../../../providers/notification_service_provider.dart';
+import '../../../services/notification_service.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
 final showTutorialProvider = StateProvider<bool>((ref) => false);
 final tutorialStepProvider = StateProvider<int>((ref) => 0);
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-
   @override
   void initState() {
     super.initState();
     _checkFirstTime();
+    _requestNotificationPermission();
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    final notificationService = ref.read(notificationServiceProvider);
+
+    await notificationService.requestNotificationPermission();
+
+    debugPrint('[NotificationsScreen] Notification permission');
   }
 
   Future<void> _checkFirstTime() async {
     final prefs = await SharedPreferences.getInstance();
-    final hasSeenTutorial = prefs.getBool('notifications_tutorial_seen') ?? false;
+    final hasSeenTutorial =
+        prefs.getBool('notifications_tutorial_seen') ?? false;
     if (!hasSeenTutorial && mounted) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -88,16 +99,43 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             icon: const Icon(Icons.add),
             tooltip: 'Add Reminder',
             onPressed: () async {
-              final newReminder = await showModalBottomSheet<NotificationReminder>(
-                context: context,
-                isScrollControlled: true,
-                useSafeArea: true,
-                builder: (context) => const CreateReminderDialog(),
-              );
+              final messenger = ScaffoldMessenger.of(context);
+              final newReminder =
+                  await showModalBottomSheet<NotificationReminder>(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    builder: (context) => const CreateReminderDialog(),
+                  );
               if (!mounted) return;
               if (newReminder != null) {
-                ref.read(notificationRemindersProvider.notifier).addReminder(newReminder);
-                // TODO: Schedule notification here
+                ref
+                    .read(notificationRemindersProvider.notifier)
+                    .addReminder(newReminder);
+
+                // Schedule notification
+                final notificationService = ref.read(
+                  notificationServiceProvider,
+                );
+                await notificationService.scheduleNotification(
+                  id: newReminder.id,
+                  title: newReminder.title,
+                  body: newReminder.description,
+                  interval: _mapInterval(newReminder.interval),
+                  weekDay: newReminder.weekDay,
+                  monthDay: newReminder.monthDay,
+                  time: newReminder.time,
+                );
+
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Reminder "${newReminder.title}" scheduled',
+                      ),
+                    ),
+                  );
+                }
               }
             },
           ),
@@ -122,7 +160,32 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         } else if (direction == DismissDirection.startToEnd) {
                           // Toggle enabled
                           final toggled = r.copyWith(enabled: !r.enabled);
-                          ref.read(notificationRemindersProvider.notifier).updateReminder(toggled);
+                          ref
+                              .read(notificationRemindersProvider.notifier)
+                              .updateReminder(toggled);
+
+                          // Handle notification scheduling based on enabled state
+                          final notificationService = ref.read(
+                            notificationServiceProvider,
+                          );
+                          if (toggled.enabled) {
+                            // Re-enable: schedule notification
+                            await notificationService.scheduleNotification(
+                              id: toggled.id,
+                              title: toggled.title,
+                              body: toggled.description,
+                              interval: _mapInterval(toggled.interval),
+                              weekDay: toggled.weekDay,
+                              monthDay: toggled.monthDay,
+                              time: toggled.time,
+                            );
+                          } else {
+                            // Disable: cancel notification
+                            await notificationService.cancelNotification(
+                              toggled.id,
+                            );
+                          }
+
                           return false;
                         }
                         return false;
@@ -132,7 +195,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.only(left: 24),
                         child: Icon(
-                          r.enabled ? Icons.notifications_off : Icons.notifications_active,
+                          r.enabled
+                              ? Icons.notifications_off
+                              : Icons.notifications_active,
                           color: Colors.white,
                         ),
                       ),
@@ -142,32 +207,88 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         padding: const EdgeInsets.only(right: 24),
                         child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      onDismissed: (direction) {
+                      onDismissed: (direction) async {
                         if (direction == DismissDirection.endToStart) {
-                          ref.read(notificationRemindersProvider.notifier).removeReminder(r.id);
-                          // TODO: Cancel scheduled notification here
+                          ref
+                              .read(notificationRemindersProvider.notifier)
+                              .removeReminder(r.id);
+
+                          // Cancel scheduled notification
+                          final notificationService = ref.read(
+                            notificationServiceProvider,
+                          );
+                          final messenger = ScaffoldMessenger.of(context);
+                          await notificationService.cancelNotification(r.id);
+
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Reminder "${r.title}" deleted'),
+                            ),
+                          );
                         }
                       },
                       child: Opacity(
                         opacity: r.enabled ? 1.0 : 0.5,
                         child: GestureDetector(
                           onTap: () async {
-                            final editedReminder = await showModalBottomSheet<NotificationReminder>(
-                              context: context,
-                              isScrollControlled: true,
-                              useSafeArea: true,
-                              builder: (context) => CreateReminderDialog(reminder: r),
-                            );
+                            final messenger = ScaffoldMessenger.of(context);
+                            final editedReminder =
+                                await showModalBottomSheet<
+                                  NotificationReminder
+                                >(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  builder: (context) =>
+                                      CreateReminderDialog(reminder: r),
+                                );
                             if (!mounted) return;
                             if (editedReminder != null) {
-                              ref.read(notificationRemindersProvider.notifier).updateReminder(editedReminder);
+                              ref
+                                  .read(notificationRemindersProvider.notifier)
+                                  .updateReminder(editedReminder);
+
+                              // Reschedule notification with updated data
+                              final notificationService = ref.read(
+                                notificationServiceProvider,
+                              );
+                              await notificationService.cancelNotification(
+                                editedReminder.id,
+                              );
+                              if (editedReminder.enabled) {
+                                await notificationService.scheduleNotification(
+                                  id: editedReminder.id,
+                                  title: editedReminder.title,
+                                  body: editedReminder.description,
+                                  interval: _mapInterval(
+                                    editedReminder.interval,
+                                  ),
+                                  weekDay: editedReminder.weekDay,
+                                  monthDay: editedReminder.monthDay,
+                                  time: editedReminder.time,
+                                );
+                              }
+
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Reminder "${editedReminder.title}" updated',
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           },
                           child: _ReminderCard(
                             title: r.title,
-                            subtitle: '${r.description} at ${r.time.format(context)}',
+                            subtitle:
+                                '${r.description} at ${r.time.format(context)}',
                             icon: r.enabled ? Icons.alarm : Icons.alarm_off,
-                            color: r.enabled ? const Color(0xFF007AFF) : const Color(0xFF8E8E93),
+                            color: r.enabled
+                                ? const Color(0xFF007AFF)
+                                : const Color(0xFF8E8E93),
                           ),
                         ),
                       ),
@@ -186,19 +307,31 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 }
 
+NotificationInterval _mapInterval(String? interval) {
+  switch (interval) {
+    case 'Weekly':
+      return NotificationInterval.weekly;
+    case 'Monthly':
+      return NotificationInterval.monthly;
+    case 'Daily':
+    default:
+      return NotificationInterval.daily;
+  }
+}
+
 class CreateReminderDialog extends ConsumerStatefulWidget {
   final NotificationReminder? reminder;
-  
+
   const CreateReminderDialog({super.key, this.reminder});
-  
+
   @override
-  ConsumerState<CreateReminderDialog> createState() => _CreateReminderDialogState();
+  ConsumerState<CreateReminderDialog> createState() =>
+      _CreateReminderDialogState();
 }
 
 class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
   final _titleController = TextEditingController();
 
-  
   final List<Map<String, dynamic>> _vitalSigns = [
     {
       'title': 'Body Weight',
@@ -215,11 +348,7 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
       'subtitle': 'Monitor body temperature',
       'icon': '🌡️',
     },
-    {
-      'title': 'Heart Rate',
-      'subtitle': 'Track your heart rate',
-      'icon': '❤️',
-    },
+    {'title': 'Heart Rate', 'subtitle': 'Track your heart rate', 'icon': '❤️'},
     {
       'title': 'Blood Pressure',
       'subtitle': 'Record systolic and diastolic BP',
@@ -231,9 +360,17 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
       'icon': '🫁',
     },
   ];
-  
+
   final List<String> _intervals = ['Daily', 'Weekly', 'Monthly'];
-  final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  final List<String> _days = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
 
   @override
   void initState() {
@@ -255,13 +392,15 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
       }
       // Initialize provider state after frame is built
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(reminderCreationProvider.notifier).initializeFromReminder(
-          vitalSign: vitalSign,
-          interval: interval,
-          day: day,
-          date: date,
-          time: widget.reminder!.time,
-        );
+        ref
+            .read(reminderCreationProvider.notifier)
+            .initializeFromReminder(
+              vitalSign: vitalSign,
+              interval: interval,
+              day: day,
+              date: date,
+              time: widget.reminder!.time,
+            );
       });
     }
   }
@@ -276,7 +415,7 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
   Widget build(BuildContext context) {
     final reminderState = ref.watch(reminderCreationProvider);
     final reminderNotifier = ref.read(reminderCreationProvider.notifier);
-    
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 1.0,
@@ -331,18 +470,26 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                   spacing: 8,
                   runSpacing: 8,
                   children: _vitalSigns.map((sign) {
-                    final isSelected = reminderState.selectedVitalSign == sign['title'];
+                    final isSelected =
+                        reminderState.selectedVitalSign == sign['title'];
                     return GestureDetector(
                       onTap: () {
                         reminderNotifier.setVitalSign(sign['title']);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF007AFF) : Colors.white,
+                          color: isSelected
+                              ? const Color(0xFF007AFF)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? const Color(0xFF007AFF) : const Color(0xFFE5E5EA),
+                            color: isSelected
+                                ? const Color(0xFF007AFF)
+                                : const Color(0xFFE5E5EA),
                             width: 1,
                           ),
                         ),
@@ -359,7 +506,9 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
-                                color: isSelected ? Colors.white : const Color(0xFF1C1C1E),
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF1C1C1E),
                               ),
                             ),
                           ],
@@ -403,10 +552,7 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                       ),
                     ),
                     items: _days.map((day) {
-                      return DropdownMenuItem(
-                        value: day,
-                        child: Text(day),
-                      );
+                      return DropdownMenuItem(value: day, child: Text(day));
                     }).toList(),
                     onChanged: (value) {
                       if (value != null) reminderNotifier.setDay(value);
@@ -447,7 +593,8 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                       onPressed: () async {
                         final picked = await showTimePicker(
                           context: context,
-                          initialTime: reminderState.selectedTime ?? TimeOfDay.now(),
+                          initialTime:
+                              reminderState.selectedTime ?? TimeOfDay.now(),
                         );
                         if (picked != null) {
                           reminderNotifier.setTime(picked);
@@ -469,21 +616,28 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () {
-                        if (_titleController.text.isNotEmpty && 
-                            reminderState.selectedVitalSign != null && 
+                        if (_titleController.text.isNotEmpty &&
+                            reminderState.selectedVitalSign != null &&
                             reminderState.selectedInterval != null &&
                             reminderState.selectedTime != null &&
-                            (reminderState.selectedInterval != 'Weekly' || reminderState.selectedDay != null) &&
-                            (reminderState.selectedInterval != 'Monthly' || reminderState.selectedDate != null)) {
-                          String description = '${reminderState.selectedVitalSign} - ${reminderState.selectedInterval}';
-                          if (reminderState.selectedInterval == 'Weekly' && reminderState.selectedDay != null) {
+                            (reminderState.selectedInterval != 'Weekly' ||
+                                reminderState.selectedDay != null) &&
+                            (reminderState.selectedInterval != 'Monthly' ||
+                                reminderState.selectedDate != null)) {
+                          String description =
+                              '${reminderState.selectedVitalSign} - ${reminderState.selectedInterval}';
+                          if (reminderState.selectedInterval == 'Weekly' &&
+                              reminderState.selectedDay != null) {
                             description += ' - ${reminderState.selectedDay}';
-                          } else if (reminderState.selectedInterval == 'Monthly' && reminderState.selectedDate != null) {
+                          } else if (reminderState.selectedInterval ==
+                                  'Monthly' &&
+                              reminderState.selectedDate != null) {
                             description += ' - ${reminderState.selectedDate}';
                           }
                           // Map day name to weekday int
                           int? weekDay;
-                          if (reminderState.selectedInterval == 'Weekly' && reminderState.selectedDay != null) {
+                          if (reminderState.selectedInterval == 'Weekly' &&
+                              reminderState.selectedDay != null) {
                             const mapping = {
                               'Monday': 1,
                               'Tuesday': 2,
@@ -504,10 +658,14 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
                             enabled: true,
                             interval: reminderState.selectedInterval,
                             weekDay: weekDay,
-                            monthDay: reminderState.selectedInterval == 'Monthly' ? reminderState.selectedDate : null,
+                            monthDay:
+                                reminderState.selectedInterval == 'Monthly'
+                                ? reminderState.selectedDate
+                                : null,
                             completedDates: widget.reminder?.completedDates,
                             isComplete: widget.reminder?.isComplete ?? false,
-                            createdAt: widget.reminder?.createdAt ?? DateTime.now(),
+                            createdAt:
+                                widget.reminder?.createdAt ?? DateTime.now(),
                           );
                           Navigator.pop(context, reminder);
                         }
@@ -524,7 +682,6 @@ class _CreateReminderDialogState extends ConsumerState<CreateReminderDialog> {
     );
   }
 }
-
 
 class _ReminderCard extends StatelessWidget {
   final String title;
@@ -605,7 +762,8 @@ class _TutorialOverlay extends StatefulWidget {
   State<_TutorialOverlay> createState() => _TutorialOverlayState();
 }
 
-class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerProviderStateMixin {
+class _TutorialOverlayState extends State<_TutorialOverlay>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _slideAnim;
@@ -638,7 +796,8 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
       },
       {
         'title': 'Create a Reminder',
-        'description': 'Tap the + button in the top right to add a new reminder',
+        'description':
+            'Tap the + button in the top right to add a new reminder',
         'icon': Icons.add_circle_outline,
         'position': 'top-right',
         'highlight': 'add-button',
@@ -666,7 +825,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
     return GestureDetector(
       onTap: () {}, // Prevent dismissing by tap
       child: Container(
-        color: Colors.black.withValues(alpha:0.85),
+        color: Colors.black.withValues(alpha: 0.85),
         child: Stack(
           children: [
             // Highlight add button
@@ -677,13 +836,19 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
                 child: Container(
                   margin: const EdgeInsets.only(top: 40, right: 16),
                   child: ScaleTransition(
-                    scale: Tween<double>(begin: 1.0, end: 1.15).animate(_scaleAnim),
+                    scale: Tween<double>(
+                      begin: 1.0,
+                      end: 1.15,
+                    ).animate(_scaleAnim),
                     child: Container(
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF007AFF), width: 3),
+                        border: Border.all(
+                          color: const Color(0xFF007AFF),
+                          width: 3,
+                        ),
                         color: Colors.white.withValues(alpha: 0.1),
                       ),
                       child: const Icon(
@@ -715,7 +880,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF007AFF), width: 2),
+                      border: Border.all(
+                        color: const Color(0xFF007AFF),
+                        width: 2,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.2),
@@ -731,10 +899,15 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                            color: const Color(
+                              0xFF007AFF,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.alarm, color: Color(0xFF007AFF)),
+                          child: const Icon(
+                            Icons.alarm,
+                            color: Color(0xFF007AFF),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -847,8 +1020,8 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
-                                color: index == widget.step 
-                                    ? const Color(0xFF007AFF) 
+                                color: index == widget.step
+                                    ? const Color(0xFF007AFF)
                                     : const Color(0xFFE5E5EA),
                                 shape: BoxShape.circle,
                               ),
@@ -875,12 +1048,17 @@ class _TutorialOverlayState extends State<_TutorialOverlay> with SingleTickerPro
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF007AFF),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 12,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: Text(widget.step < steps.length - 1 ? 'Next' : 'Done'),
+                            child: Text(
+                              widget.step < steps.length - 1 ? 'Next' : 'Done',
+                            ),
                           ),
                         ],
                       ),

@@ -109,7 +109,8 @@ class HealthSyncEntity {
     return HealthSyncEntity(
       lastSyncTime: lastSyncTime ?? this.lastSyncTime,
       status: status ?? this.status,
-      totalSyncedObservations: totalSyncedObservations ?? this.totalSyncedObservations,
+      totalSyncedObservations:
+          totalSyncedObservations ?? this.totalSyncedObservations,
       errorMessage: errorMessage ?? this.errorMessage,
       permittedDataTypes: permittedDataTypes ?? this.permittedDataTypes,
     );

@@ -3,9 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../data/models/notification_reminder.dart';
 
-final notificationRemindersProvider = StateNotifierProvider<NotificationRemindersNotifier, List<NotificationReminder>>((ref) => NotificationRemindersNotifier());
+final notificationRemindersProvider =
+    StateNotifierProvider<
+      NotificationRemindersNotifier,
+      List<NotificationReminder>
+    >((ref) => NotificationRemindersNotifier());
 
-class NotificationRemindersNotifier extends StateNotifier<List<NotificationReminder>> {
+class NotificationRemindersNotifier
+    extends StateNotifier<List<NotificationReminder>> {
   static const _prefsKey = 'notification_reminders';
 
   NotificationRemindersNotifier() : super([]) {
@@ -40,7 +45,7 @@ class NotificationRemindersNotifier extends StateNotifier<List<NotificationRemin
   void updateReminder(NotificationReminder reminder) {
     state = [
       for (final r in state)
-        if (r.id == reminder.id) reminder else r
+        if (r.id == reminder.id) reminder else r,
     ];
     _saveReminders();
   }

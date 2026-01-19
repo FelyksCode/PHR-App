@@ -1,7 +1,7 @@
 import 'app_error.dart';
 
 /// A Result type representing either success or failure
-/// 
+///
 /// This provides a type-safe way to handle both success and error cases
 /// without exceptions.
 sealed class Result<T> {

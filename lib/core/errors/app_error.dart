@@ -1,5 +1,5 @@
 /// Base class for all application errors.
-/// 
+///
 /// This sealed class ensures type-safe error handling throughout the app.
 /// All errors in the application should extend this class.
 sealed class AppError implements Exception {
@@ -7,18 +7,10 @@ sealed class AppError implements Exception {
   final String? code;
   final StackTrace? stackTrace;
 
-  const AppError(
-    this.message, {
-    this.code,
-    this.stackTrace,
-  });
+  const AppError(this.message, {this.code, this.stackTrace});
 
   /// Returns a copy of this error with updated fields
-  AppError copyWith({
-    String? message,
-    String? code,
-    StackTrace? stackTrace,
-  });
+  AppError copyWith({String? message, String? code, StackTrace? stackTrace});
 
   @override
   String toString() => 'AppError($code): $message';
@@ -29,11 +21,11 @@ final class NetworkError extends AppError {
   final bool isRetryable;
 
   const NetworkError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.isRetryable = true,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   NetworkError copyWith({
@@ -56,11 +48,11 @@ final class UnauthorizedError extends AppError {
   final bool shouldLogout;
 
   const UnauthorizedError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.shouldLogout = true,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   UnauthorizedError copyWith({
@@ -83,11 +75,11 @@ final class ForbiddenError extends AppError {
   final List<String>? requiredPermissions;
 
   const ForbiddenError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.requiredPermissions,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   ForbiddenError copyWith({
@@ -111,12 +103,12 @@ final class NotFoundError extends AppError {
   final String? resourceId;
 
   const NotFoundError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.resourceType,
     this.resourceId,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   NotFoundError copyWith({
@@ -141,11 +133,11 @@ final class ValidationError extends AppError {
   final Map<String, List<String>>? fieldErrors;
 
   const ValidationError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.fieldErrors,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   /// Get error message for a specific field
   String? getFieldError(String fieldName) {
@@ -179,12 +171,12 @@ final class ServerError extends AppError {
   final bool isRetryable;
 
   const ServerError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.statusCode,
     this.isRetryable = true,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   ServerError copyWith({
@@ -210,12 +202,12 @@ final class TimeoutError extends AppError {
   final bool isRetryable;
 
   const TimeoutError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.timeout,
     this.isRetryable = true,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   TimeoutError copyWith({
@@ -240,11 +232,11 @@ final class UnknownError extends AppError {
   final dynamic originalException;
 
   const UnknownError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.originalException,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   @override
   UnknownError copyWith({
@@ -267,11 +259,11 @@ final class LocalValidationError extends AppError {
   final Map<String, List<String>>? fieldErrors;
 
   const LocalValidationError(
-    String message, {
-    String? code,
-    StackTrace? stackTrace,
+    super.message, {
+    super.code,
+    super.stackTrace,
     this.fieldErrors,
-  }) : super(message, code: code, stackTrace: stackTrace);
+  });
 
   /// Get error message for a specific field
   String? getFieldError(String fieldName) {

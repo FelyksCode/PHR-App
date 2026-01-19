@@ -10,7 +10,9 @@ class LocalCacheService {
   static const _observationsKey = 'cached_latest_observations';
   static const _conditionsKey = 'cached_latest_conditions';
 
-  Future<void> cacheObservations(List<Map<String, dynamic>> observations) async {
+  Future<void> cacheObservations(
+    List<Map<String, dynamic>> observations,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(observations);
@@ -37,7 +39,9 @@ class LocalCacheService {
         return [];
       }
       final decoded = jsonDecode(raw) as List<dynamic>;
-      final result = decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final result = decoded
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       return result;
     } catch (e, st) {
       AppErrorLogger.logError(
@@ -81,7 +85,9 @@ class LocalCacheService {
         return [];
       }
       final decoded = jsonDecode(raw) as List<dynamic>;
-      final result = decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final result = decoded
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       return result;
     } catch (e, st) {
       AppErrorLogger.logError(

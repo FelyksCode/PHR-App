@@ -16,7 +16,7 @@ class HealthPermissions {
   ];
 
   /// Access types for all required permissions (READ_WRITE for all)
-  static List<HealthDataAccess> get accessTypes => 
+  static List<HealthDataAccess> get accessTypes =>
       List.filled(requiredPermissions.length, HealthDataAccess.READ_WRITE);
 
   /// Permission categories for UI display
@@ -37,19 +37,14 @@ class HealthPermissions {
       title: 'Body Temperature',
       description: 'Track body temperature changes',
       color: 0xFFFF9500,
-      dataTypes: [
-        HealthDataType.BODY_TEMPERATURE,
-      ],
+      dataTypes: [HealthDataType.BODY_TEMPERATURE],
     ),
     HealthPermissionCategory(
       icon: 'monitor_weight',
       title: 'Weight & Height',
       description: 'Monitor body composition',
       color: 0xFF34C759,
-      dataTypes: [
-        HealthDataType.WEIGHT,
-        HealthDataType.HEIGHT,
-      ],
+      dataTypes: [HealthDataType.WEIGHT, HealthDataType.HEIGHT],
     ),
     HealthPermissionCategory(
       icon: 'air',

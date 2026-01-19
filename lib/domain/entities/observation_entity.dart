@@ -2,16 +2,46 @@ enum ObservationType {
   bodyWeight('body_weight', 'Body Weight', 'Berat badan', '体重'),
   bodyHeight('body_height', 'Body Height', 'Tinggi badan', '身高'),
   bodyTemperature('body_temperature', 'Body Temperature', 'Suhu tubuh', '体温'),
-  bloodPressureSystolic('blood_pressure_systolic', 'Blood Pressure - Systolic', 'Tekanan Darah - Sistolik', '血压 - 收缩压'),
-  bloodPressureDiastolic('blood_pressure_diastolic', 'Blood Pressure - Diastolic', 'Tekanan Darah - Diastolik', '血压 - 舒张压'),
-  oxygenSaturation('oxygen_saturation', 'Oxygen Saturation', 'Saturasi Oksigen', '血氧'),
+  bloodPressureSystolic(
+    'blood_pressure_systolic',
+    'Blood Pressure - Systolic',
+    'Tekanan Darah - Sistolik',
+    '血压 - 收缩压',
+  ),
+  bloodPressureDiastolic(
+    'blood_pressure_diastolic',
+    'Blood Pressure - Diastolic',
+    'Tekanan Darah - Diastolik',
+    '血压 - 舒张压',
+  ),
+  oxygenSaturation(
+    'oxygen_saturation',
+    'Oxygen Saturation',
+    'Saturasi Oksigen',
+    '血氧',
+  ),
   heartRate('heart_rate', 'Heart Rate', 'Detak jantung', '心率'),
-  respiratoryRate('respiratory_rate', 'Respiratory Rate', 'Laju Pernapasan', '呼吸频率'),
+  respiratoryRate(
+    'respiratory_rate',
+    'Respiratory Rate',
+    'Laju Pernapasan',
+    '呼吸频率',
+  ),
   steps('steps', 'Steps', 'Langkah', '步数'),
-  caloriesBurned('calories_burned', 'Calories Burned', 'Kalori Terbakar', '燃烧卡路里');
+  caloriesBurned(
+    'calories_burned',
+    'Calories Burned',
+    'Kalori Terbakar',
+    '燃烧卡路里',
+  );
 
-  const ObservationType(this.name, this.displayName, this.displayNameId, this.displayNameZh);
-  
+  const ObservationType(
+    this.name,
+    this.displayName,
+    this.displayNameId,
+    this.displayNameZh,
+  );
+
   final String name;
   final String displayName;
   final String displayNameId;
@@ -111,7 +141,7 @@ enum ObservationCategory {
   laboratory('laboratory', 'Laboratory');
 
   const ObservationCategory(this.code, this.display);
-  
+
   final String code;
   final String display;
 }
@@ -124,7 +154,7 @@ enum DataSource {
   vendor('vendor', 'Vendor Integration');
 
   const DataSource(this.name, this.displayName);
-  
+
   final String name;
   final String displayName;
 }

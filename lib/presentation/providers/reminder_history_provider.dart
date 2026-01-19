@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/reminder_history_record.dart';
 
-final reminderHistoryProvider = StateNotifierProvider<ReminderHistoryNotifier, List<ReminderHistoryRecord>>(
-  (ref) => ReminderHistoryNotifier(),
-);
+final reminderHistoryProvider =
+    StateNotifierProvider<ReminderHistoryNotifier, List<ReminderHistoryRecord>>(
+      (ref) => ReminderHistoryNotifier(),
+    );
 
-class ReminderHistoryNotifier extends StateNotifier<List<ReminderHistoryRecord>> {
+class ReminderHistoryNotifier
+    extends StateNotifier<List<ReminderHistoryRecord>> {
   static const _prefsKey = 'reminder_history';
 
   ReminderHistoryNotifier() : super(const []) {

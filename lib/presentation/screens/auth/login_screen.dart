@@ -30,10 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _handleLogin() {
     if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authProvider.notifier).login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      ref
+          .read(authProvider.notifier)
+          .login(_emailController.text.trim(), _passwordController.text);
     }
   }
 
@@ -60,7 +59,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else if (next.isAuthenticated && !next.isLoading) {
         // Navigate to dashboard after successful login
         if (Navigator.canPop(context)) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/dashboard', (route) => false);
         } else {
           Navigator.of(context).pushReplacementNamed('/dashboard');
         }
@@ -72,12 +73,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32.0,
+              vertical: 24.0,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 60),
-                
+
                 // App Title
                 Text(
                   l10n.loginTitle,
@@ -87,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 Text(
                   l10n.welcomeBack,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -95,14 +99,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 60),
-                
+
                 // Login Form
                 Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+                    border: Border.all(
+                      color: const Color(0xFFE5E5EA),
+                      width: 1,
+                    ),
                   ),
                   child: Form(
                     key: _formKey,
@@ -146,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Password Field
                         TextFormField(
                           controller: _passwordController,
@@ -168,7 +175,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: Colors.grey[600],
                               ),
                               onPressed: () {
-                                ref.read(obscurePasswordProvider.notifier).state =
+                                ref
+                                        .read(obscurePasswordProvider.notifier)
+                                        .state =
                                     !obscurePassword;
                               },
                             ),
@@ -194,7 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
+
                         // Login Button
                         ElevatedButton(
                           onPressed: authState.isLoading ? null : _handleLogin,
@@ -230,9 +239,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Error display
                 if (authState.error != null)
                   Container(
@@ -247,9 +256,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: TextStyle(color: Colors.red[700], fontSize: 14),
                     ),
                   ),
-                
+
                 if (authState.error != null) const SizedBox(height: 16),
-                
+
                 // Demo credentials hint
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -262,7 +271,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Color(0xFF007AFF), size: 20),
+                          const Icon(
+                            Icons.info_outline,
+                            color: Color(0xFF007AFF),
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             l10n.demoCredentials,

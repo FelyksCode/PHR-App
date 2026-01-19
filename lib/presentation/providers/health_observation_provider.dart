@@ -57,7 +57,8 @@ class HealthObservationListState {
 
 class HealthObservationListNotifier
     extends StateNotifier<HealthObservationListState> {
-  HealthObservationListNotifier(this._api) : super(HealthObservationListState.initial()) {
+  HealthObservationListNotifier(this._api)
+    : super(HealthObservationListState.initial()) {
     loadObservations(reset: true);
   }
 
@@ -105,6 +106,17 @@ class HealthObservationListNotifier
   }
 
   Future<void> refresh() async {
+    // Start a visual refresh state
+    state = state.copyWith(isRefreshing: true, error: null);
+
+    final isOnline = await _api.isOnline();
+
+    if (!isOnline) {
+      // If offline, just end the refresh without changing items
+      state = state.copyWith(isRefreshing: false);
+      return;
+    }
+
     await loadObservations(reset: true);
   }
 
@@ -121,9 +133,10 @@ class HealthObservationListNotifier
 }
 
 final healthObservationListProvider =
-    StateNotifierProvider<HealthObservationListNotifier, HealthObservationListState>(
-  (ref) {
-    final api = ref.read(apiServiceProvider);
-    return HealthObservationListNotifier(api);
-  },
-);
+    StateNotifierProvider<
+      HealthObservationListNotifier,
+      HealthObservationListState
+    >((ref) {
+      final api = ref.read(apiServiceProvider);
+      return HealthObservationListNotifier(api);
+    });

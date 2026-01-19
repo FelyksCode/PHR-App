@@ -13,7 +13,7 @@ class ExportService {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm');
 
   ExportService({LocalCacheService? cacheService})
-      : _cacheService = cacheService ?? LocalCacheService();
+    : _cacheService = cacheService ?? LocalCacheService();
 
   /// Exports cached observations and conditions to a PDF file.
   /// Returns the saved file path.
@@ -39,7 +39,8 @@ class ExportService {
     );
 
     final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/phr_export_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final filePath =
+        '${dir.path}/phr_export_${DateTime.now().millisecondsSinceEpoch}.pdf';
     final file = File(filePath);
     await file.writeAsBytes(await doc.save());
 
@@ -53,18 +54,29 @@ class ExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Personal Health Record Export', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          'Personal Health Record Export',
+          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 4),
-        pw.Text('Generated: ${_dateFormat.format(DateTime.now())}', style: pw.TextStyle(fontSize: 10)),
-        if (userName != null) pw.Text('Name: $userName', style: pw.TextStyle(fontSize: 12)),
-        if (userEmail != null) pw.Text('Email: $userEmail', style: pw.TextStyle(fontSize: 12)),
+        pw.Text(
+          'Generated: ${_dateFormat.format(DateTime.now())}',
+          style: pw.TextStyle(fontSize: 10),
+        ),
+        if (userName != null)
+          pw.Text('Name: $userName', style: pw.TextStyle(fontSize: 12)),
+        if (userEmail != null)
+          pw.Text('Email: $userEmail', style: pw.TextStyle(fontSize: 12)),
       ],
     );
   }
 
   pw.Widget _buildObservations(List<Map<String, dynamic>> observations) {
     if (observations.isEmpty) {
-      return pw.Text('No observations available.', style: pw.TextStyle(fontSize: 12));
+      return pw.Text(
+        'No observations available.',
+        style: pw.TextStyle(fontSize: 12),
+      );
     }
 
     final headers = ['Type', 'Value', 'Unit', 'Timestamp'];
@@ -79,7 +91,10 @@ class ExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Vital Signs', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          'Vital Signs',
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 8),
         pw.TableHelper.fromTextArray(
           headers: headers,
@@ -96,7 +111,10 @@ class ExportService {
 
   pw.Widget _buildConditions(List<Map<String, dynamic>> conditions) {
     if (conditions.isEmpty) {
-      return pw.Text('No conditions available.', style: pw.TextStyle(fontSize: 12));
+      return pw.Text(
+        'No conditions available.',
+        style: pw.TextStyle(fontSize: 12),
+      );
     }
 
     final headers = ['Category', 'Severity', 'Description', 'Timestamp'];
@@ -111,7 +129,10 @@ class ExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Conditions', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          'Conditions',
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 8),
         pw.TableHelper.fromTextArray(
           headers: headers,
@@ -133,14 +154,20 @@ class ExportService {
       if (value is int) {
         // Heuristically assume ms if longer than 10 digits
         final isMs = value > 10000000000;
-        final dt = DateTime.fromMillisecondsSinceEpoch(isMs ? value : value * 1000, isUtc: true).toLocal();
+        final dt = DateTime.fromMillisecondsSinceEpoch(
+          isMs ? value : value * 1000,
+          isUtc: true,
+        ).toLocal();
         return _dateFormat.format(dt);
       }
 
       if (value is double) {
         final asInt = value.toInt();
         final isMs = asInt > 10000000000;
-        final dt = DateTime.fromMillisecondsSinceEpoch(isMs ? asInt : asInt * 1000, isUtc: true).toLocal();
+        final dt = DateTime.fromMillisecondsSinceEpoch(
+          isMs ? asInt : asInt * 1000,
+          isUtc: true,
+        ).toLocal();
         return _dateFormat.format(dt);
       }
 

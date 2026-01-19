@@ -2,20 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-final isRequestingNotificationPermissionsProvider = StateProvider<bool>((ref) => false);
+import '../../../providers/notification_permission_provider.dart';
 
 class NotificationPermissionsScreen extends ConsumerStatefulWidget {
   const NotificationPermissionsScreen({super.key});
 
   @override
-  ConsumerState<NotificationPermissionsScreen> createState() => _NotificationPermissionsScreenState();
+  ConsumerState<NotificationPermissionsScreen> createState() =>
+      _NotificationPermissionsScreenState();
 }
 
-class _NotificationPermissionsScreenState extends ConsumerState<NotificationPermissionsScreen> {
-  
+class _NotificationPermissionsScreenState
+    extends ConsumerState<NotificationPermissionsScreen> {
   @override
   Widget build(BuildContext context) {
-    final isRequestingPermissions = ref.watch(isRequestingNotificationPermissionsProvider);
+    final isRequestingPermissions = ref.watch(
+      isRequestingNotificationPermissionsProvider,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -24,18 +27,20 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
           padding: const EdgeInsets.all(24.0),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - 
-                         MediaQuery.of(context).padding.top - 48,
+              minHeight:
+                  MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  48,
             ),
             child: Column(
               children: [
                 const SizedBox(height: 40),
-              
+
                 // Header
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9500).withValues(alpha:0.1),
+                    color: const Color(0xFFFF9500).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(
@@ -44,9 +49,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                     color: Color(0xFFFF9500),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 const Text(
                   'Stay Updated',
                   style: TextStyle(
@@ -56,9 +61,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 const Text(
                   'Enable notifications to receive reminders about your health check-ups, medication schedules, and important health alerts.',
                   style: TextStyle(
@@ -68,23 +73,27 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Notification features info
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+                    border: Border.all(
+                      color: const Color(0xFFE5E5EA),
+                      width: 1,
+                    ),
                   ),
                   child: Column(
                     children: [
                       _buildNotificationFeature(
                         icon: Icons.schedule,
                         title: 'Health Reminders',
-                        description: 'Get timely reminders for vital sign measurements',
+                        description:
+                            'Get timely reminders for vital sign measurements',
                         color: const Color(0xFF007AFF),
                       ),
                       const SizedBox(height: 24),
@@ -98,32 +107,29 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                       _buildNotificationFeature(
                         icon: Icons.warning,
                         title: 'Health Alerts',
-                        description: 'Important notifications about your health status',
+                        description:
+                            'Important notifications about your health status',
                         color: const Color(0xFFFF3B30),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Privacy notice
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF34C759).withValues(alpha:0.1),
+                    color: const Color(0xFF34C759).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFF34C759).withValues(alpha:0.3),
+                      color: const Color(0xFF34C759).withValues(alpha: 0.3),
                     ),
                   ),
                   child: const Row(
                     children: [
-                      Icon(
-                        Icons.lock,
-                        color: Color(0xFF34C759),
-                        size: 20,
-                      ),
+                      Icon(Icons.lock, color: Color(0xFF34C759), size: 20),
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -138,9 +144,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Action buttons
                 Column(
                   children: [
@@ -148,7 +154,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: isRequestingPermissions ? null : _requestNotificationPermission,
+                        onPressed: isRequestingPermissions
+                            ? null
+                            : _requestNotificationPermission,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF9500),
                           foregroundColor: Colors.white,
@@ -163,7 +171,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Text(
@@ -180,7 +190,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                       width: double.infinity,
                       height: 52,
                       child: TextButton(
-                        onPressed: isRequestingPermissions ? null : _skipNotifications,
+                        onPressed: isRequestingPermissions
+                            ? null
+                            : _skipNotifications,
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF8E8E93),
                           shape: RoundedRectangleBorder(
@@ -217,14 +229,10 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withValues(alpha:0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
+          child: Icon(icon, color: color, size: 20),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -242,10 +250,7 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
               const SizedBox(height: 2),
               Text(
                 description,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF8E8E93),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
               ),
             ],
           ),
@@ -258,10 +263,13 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
     ref.read(isRequestingNotificationPermissionsProvider.notifier).state = true;
 
     try {
-      final status = await Permission.notification.request();
+      final status = await ref
+          .read(notificationPermissionProvider.notifier)
+          .requestNotificationPermission();
 
       if (mounted) {
-        ref.read(isRequestingNotificationPermissionsProvider.notifier).state = false;
+        ref.read(isRequestingNotificationPermissionsProvider.notifier).state =
+            false;
 
         if (status.isGranted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -282,7 +290,7 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
               behavior: SnackBarBehavior.floating,
             ),
           );
-          
+
           // Navigate to dashboard after a short delay
           if (mounted) {
             Future.delayed(const Duration(milliseconds: 1500), () {
@@ -311,7 +319,7 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
               duration: const Duration(seconds: 2),
             ),
           );
-          
+
           // Auto-dismiss after showing message and navigate
           Future.delayed(const Duration(milliseconds: 2500), () {
             if (mounted) {
@@ -340,7 +348,9 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
                 label: 'Settings',
                 textColor: Colors.white,
                 onPressed: () {
-                  openAppSettings();
+                  ref
+                      .read(notificationPermissionProvider.notifier)
+                      .openSettings();
                 },
               ),
             ),
@@ -349,7 +359,8 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
       }
     } catch (e) {
       if (mounted) {
-        ref.read(isRequestingNotificationPermissionsProvider.notifier).state = false;
+        ref.read(isRequestingNotificationPermissionsProvider.notifier).state =
+            false;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -394,7 +405,7 @@ class _NotificationPermissionsScreenState extends ConsumerState<NotificationPerm
           duration: Duration(seconds: 1),
         ),
       );
-      
+
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) {
           Navigator.of(context).pop(false);

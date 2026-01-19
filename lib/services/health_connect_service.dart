@@ -79,6 +79,7 @@ class HealthConnectService {
         if (kDebugMode) {
           print('Health Connect SDK available: $isAvailable (status: $status)');
           // In debug mode, always return true to enable testing
+
           return true;
         }
 
@@ -210,8 +211,9 @@ class HealthConnectService {
         // Use requestAuthorization with proper parameter format
         final result = await _healthClient!.requestAuthorization(
           permissions,
-          permissions: accessTypes ?? 
-                      permissions.map((_) => HealthDataAccess.READ_WRITE).toList(),
+          permissions:
+              accessTypes ??
+              permissions.map((_) => HealthDataAccess.READ_WRITE).toList(),
         );
 
         if (kDebugMode) {
@@ -224,7 +226,7 @@ class HealthConnectService {
         if (kDebugMode) {
           print('Requesting HealthKit permissions...');
         }
-        
+
         final result = await _healthClient!.requestAuthorization(permissions);
 
         if (kDebugMode) {
@@ -240,7 +242,7 @@ class HealthConnectService {
         print('Error requesting health permissions: $e');
         print('Error type: ${e.runtimeType}');
       }
-      
+
       // Re-throw the error so the UI can handle it appropriately
       rethrow;
     }

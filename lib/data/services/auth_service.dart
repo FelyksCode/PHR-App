@@ -114,11 +114,7 @@ class AuthService {
       final response = await _dio.post(
         '/auth/login',
         data: request.toJson(),
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
       if (response.statusCode == 200) {
@@ -222,7 +218,7 @@ class AuthService {
 class AuthException implements Exception {
   final String message;
   AuthException(this.message);
-  
+
   @override
   String toString() => 'AuthException: $message';
 }

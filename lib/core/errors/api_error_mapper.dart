@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'app_error.dart';
 
 /// Maps low-level exceptions (Dio, Socket, etc.) to domain-level AppError.
-/// 
+///
 /// This is the single point of conversion for all API and network errors.
 /// No raw exceptions should leak past this mapper.
 abstract class ApiErrorMapper {
@@ -17,7 +17,8 @@ abstract class ApiErrorMapper {
     String? errorCode;
 
     if (data is Map<String, dynamic>) {
-      backendMessage = data['message'] ??
+      backendMessage =
+          data['message'] ??
           data['error'] ??
           data['errorMessage'] ??
           data['detail'];
@@ -34,7 +35,8 @@ abstract class ApiErrorMapper {
         );
       case 403:
         return ForbiddenError(
-          backendMessage ?? 'You do not have permission to access this resource.',
+          backendMessage ??
+              'You do not have permission to access this resource.',
           code: errorCode ?? 'FORBIDDEN',
         );
       case 404:
@@ -62,10 +64,7 @@ abstract class ApiErrorMapper {
   }
 
   /// Converts an exception (Dio error, Socket exception, etc.) to AppError
-  static AppError fromException(
-    Object error, {
-    StackTrace? stackTrace,
-  }) {
+  static AppError fromException(Object error, {StackTrace? stackTrace}) {
     // DioException wraps various network-related errors
     if (error is DioException) {
       return _handleDioException(error, stackTrace);
@@ -183,7 +182,8 @@ abstract class ApiErrorMapper {
 
       if (data.containsKey('errors') && data['errors'] is Map) {
         fieldErrors = _normalizeFieldErrors(data['errors']);
-      } else if (data.containsKey('fieldErrors') && data['fieldErrors'] is Map) {
+      } else if (data.containsKey('fieldErrors') &&
+          data['fieldErrors'] is Map) {
         fieldErrors = _normalizeFieldErrors(data['fieldErrors']);
       } else {
         // Try direct field errors

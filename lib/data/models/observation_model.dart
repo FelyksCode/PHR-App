@@ -22,7 +22,6 @@ class ObservationModel extends ObservationEntity {
   factory ObservationModel.fromJson(Map<String, dynamic> json) =>
       _$ObservationModelFromJson(json);
 
-
   factory ObservationModel.fromEntity(ObservationEntity entity) {
     return ObservationModel(
       id: entity.id,
@@ -73,12 +72,13 @@ class ObservationModel extends ObservationEntity {
         {
           'coding': [
             {
-              'system': 'http://terminology.hl7.org/CodeSystem/observation-category',
+              'system':
+                  'http://terminology.hl7.org/CodeSystem/observation-category',
               'code': category.code,
-              'display': category.display
-            }
-          ]
-        }
+              'display': category.display,
+            },
+          ],
+        },
       ],
       'code': {
         'coding': [
@@ -86,12 +86,10 @@ class ObservationModel extends ObservationEntity {
             'system': 'http://loinc.org',
             'code': type.loincCode,
             'display': type.displayName,
-          }
-        ]
+          },
+        ],
       },
-      'subject': {
-        'reference': 'Patient/${patientId ?? 'unknown'}'
-      },
+      'subject': {'reference': 'Patient/${patientId ?? 'unknown'}'},
       'effectiveDateTime': timestamp.toIso8601String(),
       'valueQuantity': {
         'value': value,
@@ -100,15 +98,19 @@ class ObservationModel extends ObservationEntity {
         'code': type.standardUnit,
       },
       if (deviceInfo != null) 'device': {'display': deviceInfo},
-      if (notes != null) 'note': [{'text': notes}],
+      if (notes != null)
+        'note': [
+          {'text': notes},
+        ],
       'meta': {
         'tag': [
           {
-            'system': 'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
+            'system':
+                'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
             'code': source.name,
             'display': source.displayName,
-          }
-        ]
+          },
+        ],
       },
     };
   }
@@ -135,26 +137,25 @@ class ObservationModel extends ObservationEntity {
         {
           'coding': [
             {
-              'system': 'http://terminology.hl7.org/CodeSystem/observation-category',
+              'system':
+                  'http://terminology.hl7.org/CodeSystem/observation-category',
               'code': categoryVal.code,
-              'display': categoryVal.display
-            }
-          ]
-        }
+              'display': categoryVal.display,
+            },
+          ],
+        },
       ],
       'code': {
         'coding': [
           {
             'system': 'http://loinc.org',
             'code': '35094-2',
-            'display': 'Blood Pressure Panel'
-          }
+            'display': 'Blood Pressure Panel',
+          },
         ],
-        'text': 'Blood Pressure Panel'
+        'text': 'Blood Pressure Panel',
       },
-      'subject': {
-        'reference': 'Patient/$patientId'
-      },
+      'subject': {'reference': 'Patient/$patientId'},
       'effectiveDateTime': effectiveTime.toIso8601String(),
       'component': [
         {
@@ -163,16 +164,16 @@ class ObservationModel extends ObservationEntity {
               {
                 'system': 'http://loinc.org',
                 'code': '8480-6',
-                'display': 'Systolic Blood Pressure'
-              }
-            ]
+                'display': 'Systolic Blood Pressure',
+              },
+            ],
           },
           'valueQuantity': {
             'value': systolic,
             'unit': 'mmHg',
             'system': 'http://unitsofmeasure.org',
-            'code': 'mm[Hg]'
-          }
+            'code': 'mm[Hg]',
+          },
         },
         {
           'code': {
@@ -180,30 +181,31 @@ class ObservationModel extends ObservationEntity {
               {
                 'system': 'http://loinc.org',
                 'code': '8462-4',
-                'display': 'Diastolic Blood Pressure'
-              }
-            ]
+                'display': 'Diastolic Blood Pressure',
+              },
+            ],
           },
           'valueQuantity': {
             'value': diastolic,
             'unit': 'mmHg',
             'system': 'http://unitsofmeasure.org',
-            'code': 'mm[Hg]'
-          }
-        }
+            'code': 'mm[Hg]',
+          },
+        },
       ],
       if (notes != null)
         'note': [
-          {'text': notes}
+          {'text': notes},
         ],
       'meta': {
         'tag': [
           {
-            'system': 'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
+            'system':
+                'http://terminology.hl7.org/CodeSystem/v3-ObservationValue',
             'code': source.name,
             'display': source.displayName,
-          }
-        ]
+          },
+        ],
       },
     };
   }

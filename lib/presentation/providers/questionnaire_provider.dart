@@ -4,7 +4,9 @@ import '../../domain/entities/questionnaire_definitions.dart';
 import '../../domain/entities/condition_entity.dart';
 
 /// Provider for all current symptom questions
-final currentSymptomsQuestionsProvider = Provider<List<QuestionDefinition>>((ref) {
+final currentSymptomsQuestionsProvider = Provider<List<QuestionDefinition>>((
+  ref,
+) {
   return QuestionnaireDefinitions.currentSymptomsQuestions;
 });
 
@@ -17,14 +19,10 @@ final sideEffectsQuestionsProvider = Provider<List<QuestionDefinition>>((ref) {
 final questionnaireSubmittingProvider = StateProvider<bool>((ref) => false);
 
 /// Manages questionnaire responses state
-class QuestionnaireResponseNotifier extends StateNotifier<QuestionnaireResponse> {
+class QuestionnaireResponseNotifier
+    extends StateNotifier<QuestionnaireResponse> {
   QuestionnaireResponseNotifier()
-      : super(
-          QuestionnaireResponse(
-            responses: [],
-            timestamp: DateTime.now(),
-          ),
-        ) {
+    : super(QuestionnaireResponse(responses: [], timestamp: DateTime.now())) {
     _initializeQuestions();
   }
 
@@ -78,10 +76,7 @@ class QuestionnaireResponseNotifier extends StateNotifier<QuestionnaireResponse>
 
   /// Set patient and encounter IDs
   void setMetadata(String patientId, String? encounterId) {
-    state = state.copyWith(
-      patientId: patientId,
-      encounterId: encounterId,
-    );
+    state = state.copyWith(patientId: patientId, encounterId: encounterId);
   }
 
   /// Reset all responses
@@ -108,8 +103,8 @@ class QuestionnaireResponseNotifier extends StateNotifier<QuestionnaireResponse>
 /// State provider for questionnaire responses
 final questionnaireResponseProvider =
     StateNotifierProvider<QuestionnaireResponseNotifier, QuestionnaireResponse>(
-  (ref) => QuestionnaireResponseNotifier(),
-);
+      (ref) => QuestionnaireResponseNotifier(),
+    );
 
 /// Computed provider: answered questions count by category
 final answeredCountCurrentProvider = Provider<int>((ref) {

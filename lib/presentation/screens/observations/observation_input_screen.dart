@@ -56,7 +56,8 @@ class _ObservationInputScreenState
     // Trigger rebuild when search text changes
     _searchController.addListener(() {
       if (mounted) {
-        ref.read(observationSearchProvider.notifier).state = _searchController.text;
+        ref.read(observationSearchProvider.notifier).state =
+            _searchController.text;
       }
     });
 
@@ -139,12 +140,13 @@ class _ObservationInputScreenState
 
     try {
       final observationService = ref.read(observationServiceProvider);
-      final success = await observationService.submitBloodPressurePanelObservation(
-        systolic: systolic,
-        diastolic: diastolic,
-        notes: notes,
-        source: DataSource.manual,
-      );
+      final success = await observationService
+          .submitBloodPressurePanelObservation(
+            systolic: systolic,
+            diastolic: diastolic,
+            notes: notes,
+            source: DataSource.manual,
+          );
 
       if (!mounted) return;
 
@@ -363,7 +365,7 @@ class _ObservationInputScreenState
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha:0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.orange),
                   ),
@@ -475,14 +477,16 @@ class _ObservationInputScreenState
                   final filtered = search.isEmpty
                       ? allTypes
                       : allTypes
-                          .where((type) =>
-                              type.displayName
-                                  .toLowerCase()
-                                  .contains(search.toLowerCase()) ||
-                              type.name
-                                  .toLowerCase()
-                                  .contains(search.toLowerCase()))
-                          .toList();
+                            .where(
+                              (type) =>
+                                  type.displayName.toLowerCase().contains(
+                                    search.toLowerCase(),
+                                  ) ||
+                                  type.name.toLowerCase().contains(
+                                    search.toLowerCase(),
+                                  ),
+                            )
+                            .toList();
                   return filtered.length;
                 })(),
                 itemBuilder: (context, index) {
@@ -491,14 +495,16 @@ class _ObservationInputScreenState
                   final filteredTypes = search.isEmpty
                       ? allTypes
                       : allTypes
-                          .where((type) =>
-                              type.displayName
-                                  .toLowerCase()
-                                  .contains(search.toLowerCase()) ||
-                              type.name
-                                  .toLowerCase()
-                                  .contains(search.toLowerCase()))
-                          .toList();
+                            .where(
+                              (type) =>
+                                  type.displayName.toLowerCase().contains(
+                                    search.toLowerCase(),
+                                  ) ||
+                                  type.name.toLowerCase().contains(
+                                    search.toLowerCase(),
+                                  ),
+                            )
+                            .toList();
                   final type = filteredTypes[index];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -518,7 +524,9 @@ class _ObservationInputScreenState
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF007AFF).withValues(alpha:0.1),
+                                color: const Color(
+                                  0xFF007AFF,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Center(

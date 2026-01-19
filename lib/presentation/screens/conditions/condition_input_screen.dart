@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phr_app/domain/entities/questionnaire_entity.dart';
-import 'package:phr_app/domain/mappers/fhir_condition_mapper.dart';
 import 'package:phr_app/presentation/widgets/questionnaire_item_widget.dart';
 import 'package:phr_app/services/api_service.dart';
 import 'package:phr_app/core/errors/app_error.dart';
 import 'package:phr_app/core/errors/app_error_logger.dart';
+import 'package:phr_app/domain/entities/condition_input.dart';
 import '../../providers/questionnaire_provider.dart';
 
 class ConditionInputScreen extends ConsumerStatefulWidget {
@@ -16,11 +16,17 @@ class ConditionInputScreen extends ConsumerStatefulWidget {
       _ConditionInputScreenState();
 }
 
-class _ConditionInputScreenState
-    extends ConsumerState<ConditionInputScreen>
+class _ConditionInputScreenState extends ConsumerState<ConditionInputScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _notesController;
+
+  // Submission UI state (kept local to avoid changing the UI structure).
+  bool _isSubmitting = false;
+  int _progressDone = 0;
+  int _progressTotal = 0;
+  final Map<String, String> _requestIdByLocalId = {};
+  Set<String> _failedLocalIds = <String>{};
 
   @override
   void initState() {
@@ -40,11 +46,28 @@ class _ConditionInputScreenState
     final response = ref.read(questionnaireResponseProvider);
 
     if (response.answeredQuestions.isEmpty) {
-      _showErrorSnackbar('No symptoms reported. Please select at least one symptom.');
+      _showErrorSnackbar(
+        'No symptoms reported. Please select at least one symptom.',
+      );
       return;
     }
 
-    ref.read(questionnaireSubmittingProvider.notifier).state = true;
+    if (_isSubmitting) return;
+
+    // If there are previous failures, keep only those as retry candidates.
+    final answered = response.answeredQuestions;
+    final retryTargets = _failedLocalIds.isEmpty
+        ? answered
+        : answered
+              .where((q) => _failedLocalIds.contains(q.questionId))
+              .toList();
+    final isRetry = _failedLocalIds.isNotEmpty && retryTargets.isNotEmpty;
+
+    setState(() {
+      _isSubmitting = true;
+      _progressDone = 0;
+      _progressTotal = isRetry ? retryTargets.length : answered.length;
+    });
 
     try {
       // Get patient ID from API service
@@ -58,7 +81,9 @@ class _ConditionInputScreenState
       }
 
       // Update metadata
-      ref.read(questionnaireResponseProvider.notifier).setMetadata(
+      ref
+          .read(questionnaireResponseProvider.notifier)
+          .setMetadata(
             patientId,
             null, // No encounter ID for now
           );
@@ -70,13 +95,6 @@ class _ConditionInputScreenState
             .setNotes(_notesController.text);
       }
 
-      // Convert to FHIR Bundle
-      final updatedResponse = ref.read(questionnaireResponseProvider);
-      final fhirBundle = FhirConditionMapper.questionnaireResponseToFhirBundle(
-        updatedResponse,
-        patientId,
-      );
-
       // Submit via FHIR endpoint
       final isOnline = await apiService.isOnline();
 
@@ -86,16 +104,66 @@ class _ConditionInputScreenState
           'Conditions saved offline. Will sync when connected.',
         );
       } else {
-        // Submit directly
-        final result = await apiService.submitFhirBundle(fhirBundle);
-        if (result) {
+        final updatedResponse = ref.read(questionnaireResponseProvider);
+
+        final targets = isRetry
+            ? updatedResponse.answeredQuestions
+                  .where((q) => _failedLocalIds.contains(q.questionId))
+                  .toList()
+            : updatedResponse.answeredQuestions;
+
+        final note = _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim();
+
+        final inputs = targets.map((q) {
+          final existingId = _requestIdByLocalId[q.questionId];
+          final reqId = existingId ?? ConditionInput.generateClientRequestId();
+          _requestIdByLocalId[q.questionId] = reqId;
+
+          return ConditionInput.fromQuestionResponse(
+            response: q,
+            patientId: patientId,
+            recordedDate: updatedResponse.timestamp,
+            encounterId: updatedResponse.encounterId,
+            clientRequestId: reqId,
+            note: note,
+          );
+        }).toList();
+
+        final result = await apiService.submitMultipleConditions(
+          inputs,
+          onProgress: (done, total) {
+            if (!mounted) return;
+            setState(() {
+              _progressDone = done;
+              _progressTotal = total;
+            });
+          },
+        );
+
+        // Clear successes, keep failures so the user can retry.
+        for (final localId in result.succeededLocalIds) {
+          ref
+              .read(questionnaireResponseProvider.notifier)
+              .clearQuestion(localId);
+          _requestIdByLocalId.remove(localId);
+        }
+
+        final failedIds = result.failedByLocalId.keys.toSet();
+        _failedLocalIds = failedIds;
+
+        if (result.failedCount == 0) {
           _showSuccessSnackbar('Conditions reported successfully');
-          // Reset form
           ref.read(questionnaireResponseProvider.notifier).reset();
           _notesController.clear();
           _tabController.index = 0;
+          _failedLocalIds = <String>{};
         } else {
-          _showErrorSnackbar('Failed to submit conditions. Please try again.');
+          _showPartialFailureSnackbar(
+            succeeded: result.succeededCount,
+            failed: result.failedCount,
+          );
         }
       }
     } catch (e, stack) {
@@ -116,11 +184,16 @@ class _ConditionInputScreenState
 
       _showErrorSnackbar(appError.message);
     } finally {
-      ref.read(questionnaireSubmittingProvider.notifier).state = false;
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
   void _showErrorSnackbar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -131,6 +204,7 @@ class _ConditionInputScreenState
   }
 
   void _showSuccessSnackbar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -140,12 +214,35 @@ class _ConditionInputScreenState
     );
   }
 
+  void _showPartialFailureSnackbar({
+    required int succeeded,
+    required int failed,
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$succeeded succeeded, $failed failed'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Retry Failed',
+          textColor: Colors.white,
+          onPressed: () {
+            if (!_isSubmitting) {
+              _submitQuestionnaire();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentResponse = ref.watch(questionnaireResponseProvider);
     final answerCountCurrent = ref.watch(answeredCountCurrentProvider);
     final answerCountSideEffects = ref.watch(answeredCountSideEffectsProvider);
-  final isSubmitting = ref.watch(questionnaireSubmittingProvider);
+    final isSubmitting = _isSubmitting;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -174,12 +271,8 @@ class _ConditionInputScreenState
           ),
           indicatorColor: Colors.blue,
           tabs: [
-            Tab(
-              text: 'Current Symptoms ($answerCountCurrent)',
-            ),
-            Tab(
-              text: 'Side Effects ($answerCountSideEffects)',
-            ),
+            Tab(text: 'Current Symptoms ($answerCountCurrent)'),
+            Tab(text: 'Side Effects ($answerCountSideEffects)'),
           ],
         ),
       ),
@@ -214,11 +307,7 @@ class _ConditionInputScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.info_outline,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.info_outline, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'No questions available',
@@ -259,18 +348,16 @@ class _ConditionInputScreenState
     );
   }
 
-  Widget _buildBottomSection(QuestionnaireResponse response, bool isSubmitting) {
+  Widget _buildBottomSection(
+    QuestionnaireResponse response,
+    bool isSubmitting,
+  ) {
     final totalAnswered = response.answeredQuestions.length;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -287,11 +374,7 @@ class _ConditionInputScreenState
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: Colors.blue,
-                  size: 20,
-                ),
+                Icon(Icons.check_circle_outline, color: Colors.blue, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -374,7 +457,9 @@ class _ConditionInputScreenState
                     )
                   : const Icon(Icons.cloud_upload_outlined),
               label: Text(
-                isSubmitting ? 'Submitting...' : 'Submit Report',
+                isSubmitting
+                    ? 'Submitting $_progressDone/$_progressTotal…'
+                    : 'Submit Report',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

@@ -1,9 +1,10 @@
 /// Central export point for all error handling components
-/// 
+///
 /// Import this file to get access to all error handling types:
 /// ```dart
 /// import 'core/errors/errors.dart';
 /// ```
+library;
 
 // Error types
 export 'app_error.dart';

@@ -1,4 +1,3 @@
-import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
@@ -7,63 +6,57 @@ import '../core/errors/app_error_logger.dart';
 import '../domain/repositories/health_sync_repository.dart';
 import '../domain/entities/health_sync_entity.dart';
 import '../domain/entities/observation_entity.dart';
+import 'workmanager_service.dart';
 
+/// Service for managing health data sync operations.
+/// Uses WorkManagerService for all background task registration.
 class HealthSyncService {
   final HealthSyncRepository _repository;
-  
-  // WorkManager task identifiers
-  static const String syncTaskName = 'health_data_sync';
-  static const String syncTaskId = 'health_sync_task';
+
   static const String _periodicSyncKey = 'periodic_sync_enabled';
-  
+
   HealthSyncService(this._repository);
-  
-  /// Initialize background sync (Android only)
-  Future<void> initializeBackgroundSync() async {
+
+  /// Schedule periodic sync using WorkManagerService
+  Future<void> schedulePeriodicSync({
+    Duration interval = const Duration(hours: 1),
+  }) async {
     if (Platform.isAndroid) {
-      await Workmanager().initialize(callbackDispatcher);
-    }
-  }
-  
-  /// Schedule periodic sync
-  Future<void> schedulePeriodicSync({Duration interval = const Duration(hours: 1)}) async {
-    if (Platform.isAndroid) {
-      await Workmanager().registerPeriodicTask(
-        syncTaskId,
-        syncTaskName,
+      await WorkManagerService.instance.registerPeriodicTask(
+        uniqueName: BackgroundTaskIds.healthSyncPeriodic,
+        taskName: BackgroundTaskNames.healthDataSync,
         frequency: interval,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-          requiresBatteryNotLow: true,
-        ),
       );
-      
+
       // Store the enabled state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_periodicSyncKey, true);
     }
   }
-  
-  /// Cancel scheduled sync
+
+  /// Cancel scheduled sync using WorkManagerService
   Future<void> cancelPeriodicSync() async {
     if (Platform.isAndroid) {
-      await Workmanager().cancelByUniqueName(syncTaskId);
-      
+      await WorkManagerService.instance.cancelTask(
+        BackgroundTaskIds.healthSyncPeriodic,
+      );
+
       // Store the disabled state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_periodicSyncKey, false);
     }
   }
-  
+
   /// Check if periodic sync is currently enabled
   Future<bool> isPeriodicSyncEnabled() async {
     if (!Platform.isAndroid) {
       return false;
     }
-    
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_periodicSyncKey) ?? false;
+      return await WorkManagerService.instance.isTaskEnabled(
+        BackgroundTaskIds.healthSyncPeriodic,
+      );
     } catch (e, st) {
       AppErrorLogger.logError(
         UnknownError(
@@ -78,7 +71,7 @@ class HealthSyncService {
       return false;
     }
   }
-  
+
   /// Perform manual sync
   Future<SyncResult> performSync({
     List<HealthDataType>? specificDataTypes,
@@ -87,15 +80,15 @@ class HealthSyncService {
     try {
       // Get current sync status
       final currentStatus = await _repository.getSyncStatus();
-      
+
       // Update status to syncing
       await _repository.updateSyncStatus(
         currentStatus.copyWith(status: SyncStatus.syncing),
       );
-      
+
       // Use permitted data types or specific types
       final dataTypes = specificDataTypes ?? currentStatus.permittedDataTypes;
-      
+
       if (dataTypes.isEmpty) {
         await _repository.updateSyncStatus(
           currentStatus.copyWith(
@@ -105,7 +98,7 @@ class HealthSyncService {
         );
         return SyncResult.permissionDenied('No data types permitted');
       }
-      
+
       // Check permissions
       final hasPermissions = await _repository.hasPermissions(dataTypes);
       if (!hasPermissions) {
@@ -117,17 +110,19 @@ class HealthSyncService {
         );
         return SyncResult.permissionDenied('Permissions not granted');
       }
-      
+
       // Get health data since last sync or specified time
-      final startDate = since ?? currentStatus.lastSyncTime ?? 
-        DateTime.now().subtract(const Duration(days: 7));
-      
+      final startDate =
+          since ??
+          currentStatus.lastSyncTime ??
+          DateTime.now().subtract(const Duration(days: 7));
+
       final healthData = await _repository.getHealthData(
         dataTypes: dataTypes,
         startDate: startDate,
         endDate: DateTime.now(),
       );
-      
+
       if (healthData.isEmpty) {
         await _repository.updateSyncStatus(
           currentStatus.copyWith(
@@ -137,22 +132,23 @@ class HealthSyncService {
         );
         return SyncResult.noData('No new health data available');
       }
-      
+
       // Convert to observations
       final observations = _repository.convertToObservations(
         healthData,
         Platform.isIOS ? DataSource.healthKit : DataSource.healthConnect,
       );
-      
+
       // Submit to backend
       final success = await _repository.submitSyncedObservations(observations);
-      
+
       if (success) {
         await _repository.updateSyncStatus(
           currentStatus.copyWith(
             status: SyncStatus.success,
             lastSyncTime: DateTime.now(),
-            totalSyncedObservations: currentStatus.totalSyncedObservations + observations.length,
+            totalSyncedObservations:
+                currentStatus.totalSyncedObservations + observations.length,
             errorMessage: null,
           ),
         );
@@ -166,7 +162,6 @@ class HealthSyncService {
         );
         return SyncResult.failed('Failed to submit data to backend');
       }
-      
     } catch (e, st) {
       AppErrorLogger.logError(
         UnknownError(
@@ -178,7 +173,7 @@ class HealthSyncService {
         source: 'HealthSyncService.performSync',
         severity: ErrorSeverity.medium,
       );
-      
+
       // Update status to failed
       final currentStatus = await _repository.getSyncStatus();
       await _repository.updateSyncStatus(
@@ -187,15 +182,15 @@ class HealthSyncService {
           errorMessage: 'Sync error: $e',
         ),
       );
-      
+
       return SyncResult.failed('Sync error: $e');
     }
   }
-  
+
   /// Request permissions for health data types
   Future<bool> requestPermissions(List<HealthDataType> dataTypes) async {
     final granted = await _repository.requestPermissions(dataTypes);
-    
+
     if (granted) {
       // Update permitted data types in sync status
       final currentStatus = await _repository.getSyncStatus();
@@ -203,15 +198,15 @@ class HealthSyncService {
         currentStatus.copyWith(permittedDataTypes: dataTypes),
       );
     }
-    
+
     return granted;
   }
-  
+
   /// Check if health sync is supported on current platform
   bool get isSupported {
     return Platform.isAndroid || Platform.isIOS;
   }
-  
+
   /// Get platform-specific data source
   DataSource get platformDataSource {
     if (Platform.isIOS) {
@@ -229,60 +224,28 @@ class SyncResult {
   final SyncResultType type;
   final String message;
   final int? syncedCount;
-  
+
   const SyncResult._(this.type, this.message, this.syncedCount);
-  
-  factory SyncResult.success(int syncedCount) =>
-    SyncResult._(SyncResultType.success, 'Successfully synced $syncedCount observations', syncedCount);
-    
+
+  factory SyncResult.success(int syncedCount) => SyncResult._(
+    SyncResultType.success,
+    'Successfully synced $syncedCount observations',
+    syncedCount,
+  );
+
   factory SyncResult.failed(String error) =>
-    SyncResult._(SyncResultType.failed, error, null);
-    
+      SyncResult._(SyncResultType.failed, error, null);
+
   factory SyncResult.permissionDenied(String message) =>
-    SyncResult._(SyncResultType.permissionDenied, message, null);
-    
+      SyncResult._(SyncResultType.permissionDenied, message, null);
+
   factory SyncResult.noData(String message) =>
-    SyncResult._(SyncResultType.noData, message, 0);
-  
+      SyncResult._(SyncResultType.noData, message, 0);
+
   bool get isSuccess => type == SyncResultType.success;
   bool get isFailed => type == SyncResultType.failed;
   bool get isPermissionDenied => type == SyncResultType.permissionDenied;
   bool get isNoData => type == SyncResultType.noData;
 }
 
-enum SyncResultType {
-  success,
-  failed,
-  permissionDenied,
-  noData,
-}
-
-/// WorkManager callback dispatcher (Android background processing)
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    try {
-      // This would need to be set up with dependency injection
-      // For now, just return success
-      // In a real implementation, you would:
-      // 1. Initialize your DI container
-      // 2. Get the HealthSyncService instance
-      // 3. Perform the sync operation
-      // 4. Return the appropriate result
-      
-      return Future.value(true);
-    } catch (e, st) {
-      AppErrorLogger.logError(
-        UnknownError(
-          'Background sync failed',
-          code: 'HEALTH_SYNC_BG_ERROR',
-          stackTrace: st,
-          originalException: e,
-        ),
-        source: 'callbackDispatcher',
-        severity: ErrorSeverity.medium,
-      );
-      return Future.value(false);
-    }
-  });
-}
+enum SyncResultType { success, failed, permissionDenied, noData }

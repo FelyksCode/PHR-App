@@ -53,7 +53,10 @@ class _ObservationsHistoryScreenState
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(latestObservationsProvider);
+          // Refresh latest observations via provider logic (online/offline aware)
+          await ref.read(latestObservationsProvider.notifier).refresh();
+
+          // Re-fetch queued observations from offline queue service
           ref.invalidate(queuedObservationsProvider);
         },
         child: SingleChildScrollView(
@@ -322,7 +325,7 @@ class _ObservationsHistoryScreenState
                   border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha:0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -335,7 +338,7 @@ class _ObservationsHistoryScreenState
                       decoration: BoxDecoration(
                         color: _getVitalSignColor(
                           vitalSignType,
-                        ).withValues(alpha:0.1),
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -540,7 +543,7 @@ class _ObservationsHistoryScreenState
                   border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha:0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -553,7 +556,7 @@ class _ObservationsHistoryScreenState
                       decoration: BoxDecoration(
                         color: _getVitalSignColor(
                           vitalSignType,
-                        ).withValues(alpha:0.1),
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -736,7 +739,7 @@ class _ObservationsHistoryScreenState
           border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -747,7 +750,9 @@ class _ObservationsHistoryScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _getVitalSignColor('blood pressure').withValues(alpha:0.1),
+                color: _getVitalSignColor(
+                  'blood pressure',
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(

@@ -24,13 +24,15 @@ class ObservationDetailScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ObservationDetailScreen> createState() => _ObservationDetailScreenState();
+  ConsumerState<ObservationDetailScreen> createState() =>
+      _ObservationDetailScreenState();
 }
 
-class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScreen> {
+class _ObservationDetailScreenState
+    extends ConsumerState<ObservationDetailScreen> {
   late ScrollController _scrollController;
   late List<Map<String, dynamic>> _observations;
-    static const int _itemsPerPage = 10;
+  static const int _itemsPerPage = 10;
 
   bool get _isBloodPressure =>
       widget.observationType == ObservationType.bloodPressureSystolic ||
@@ -51,25 +53,30 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
       ref.read(observationDetailProvider.notifier).incrementPage();
     }
   }
 
-  List<Map<String, dynamic>> _getFilteredObservations({bool Function(Map<String, dynamic>)? filter}) {
+  List<Map<String, dynamic>> _getFilteredObservations({
+    bool Function(Map<String, dynamic>)? filter,
+  }) {
     final detailState = ref.read(observationDetailProvider);
     final now = DateTime.now();
-    final Duration duration = switch (detailState.selectedPeriod) {
-      TimePeriod.hours24 => const Duration(hours: 24),
-      TimePeriod.days7 => const Duration(days: 7),
-      TimePeriod.days30 => const Duration(days: 30),
+    final DateTime cutoffDate = switch (detailState.selectedPeriod) {
+      // Today: from start of current day
+      TimePeriod.hours24 => DateTime(now.year, now.month, now.day),
+      // Last 7 days (rolling)
+      TimePeriod.days7 => now.subtract(const Duration(days: 7)),
+      // This month: from first day of current month
+      TimePeriod.days30 => DateTime(now.year, now.month, 1),
     };
-    final cutoffDate = now.subtract(duration);
 
     return _observations.where((obs) {
       final dateTimeStr = obs['effectiveDateTime'] as String?;
       if (dateTimeStr == null) return false;
-      final dateTime = DateTime.tryParse(dateTimeStr);
+      final dateTime = DateTime.tryParse(dateTimeStr)?.toLocal();
       if (dateTime == null) return false;
       if (!dateTime.isAfter(cutoffDate)) return false;
       if (filter != null && !filter(obs)) return false;
@@ -83,14 +90,24 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     // Sort by date
     final sorted = List<Map<String, dynamic>>.from(filteredObs)
       ..sort((a, b) {
-        final dateA = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-        final dateB = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
+        final dateA =
+            DateTime.tryParse(
+              a['effectiveDateTime'] as String? ?? '',
+            )?.toLocal() ??
+            DateTime.now();
+        final dateB =
+            DateTime.tryParse(
+              b['effectiveDateTime'] as String? ?? '',
+            )?.toLocal() ??
+            DateTime.now();
         return dateA.compareTo(dateB);
       });
 
     return sorted.asMap().entries.map((entry) {
       final value = entry.value['value'];
-      final numValue = value is num ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
+      final numValue = value is num
+          ? value.toDouble()
+          : double.tryParse(value.toString()) ?? 0.0;
       return FlSpot(entry.key.toDouble(), numValue);
     }).toList();
   }
@@ -101,37 +118,50 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     return double.tryParse(value.toString());
   }
 
-  List<Map<String, dynamic>> _groupBloodPressureHistory(List<Map<String, dynamic>> observations) {
+  List<Map<String, dynamic>> _groupBloodPressureHistory(
+    List<Map<String, dynamic>> observations,
+  ) {
     final Map<String, Map<String, dynamic>> grouped = {};
 
     for (final obs in observations) {
       final dateStr = obs['effectiveDateTime'] as String?;
       if (dateStr == null) continue;
 
-      final parsedDate = DateTime.tryParse(dateStr) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      
+      final parsedDate =
+          DateTime.tryParse(dateStr)?.toLocal() ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+
       // Handle FHIR panel format with components
       final components = obs['component'] as List<dynamic>?;
       if (components != null && components.isNotEmpty) {
         // This is a blood pressure panel observation
-        final entry = grouped.putIfAbsent(dateStr, () => {
-          'effectiveDateTime': dateStr,
-          'date': parsedDate,
-          'systolic': null,
-          'diastolic': null,
-          'unit': 'mmHg',
-          'notes': obs['note'] != null ? (obs['note'] as List).isNotEmpty ? (obs['note'][0]['text'] as String?) : null : null,
-        });
+        final entry = grouped.putIfAbsent(
+          dateStr,
+          () => {
+            'effectiveDateTime': dateStr,
+            'date': parsedDate,
+            'systolic': null,
+            'diastolic': null,
+            'unit': 'mmHg',
+            'notes': obs['note'] != null
+                ? (obs['note'] as List).isNotEmpty
+                      ? (obs['note'][0]['text'] as String?)
+                      : null
+                : null,
+          },
+        );
 
         // Extract systolic and diastolic from components
         for (final component in components) {
           final code = component['code'] as Map<String, dynamic>?;
           final coding = code?['coding'] as List<dynamic>?;
           if (coding != null && coding.isNotEmpty) {
-            final loincCode = (coding[0] as Map<String, dynamic>?)?['code'] as String?;
-            final valueQuantity = component['valueQuantity'] as Map<String, dynamic>?;
+            final loincCode =
+                (coding[0] as Map<String, dynamic>?)?['code'] as String?;
+            final valueQuantity =
+                component['valueQuantity'] as Map<String, dynamic>?;
             final value = valueQuantity?['value'];
-            
+
             if (loincCode == '8480-6') {
               // Systolic
               entry['systolic'] ??= _toDouble(value);
@@ -150,14 +180,17 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       final isDiastolic = type.contains('diastolic');
       if (!isSystolic && !isDiastolic) continue;
 
-      final entry = grouped.putIfAbsent(dateStr, () => {
-        'effectiveDateTime': dateStr,
-        'date': parsedDate,
-        'systolic': null,
-        'diastolic': null,
-        'unit': obs['unit'],
-        'notes': obs['notes'],
-      });
+      final entry = grouped.putIfAbsent(
+        dateStr,
+        () => {
+          'effectiveDateTime': dateStr,
+          'date': parsedDate,
+          'systolic': null,
+          'diastolic': null,
+          'unit': obs['unit'],
+          'notes': obs['notes'],
+        },
+      );
 
       if (isSystolic) {
         entry['systolic'] ??= _toDouble(obs['value']);
@@ -171,26 +204,34 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     }
 
     final groupedList = grouped.values.toList();
-    groupedList.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+    groupedList.sort(
+      (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+    );
     return groupedList;
   }
 
   String _getChartTitle() {
     final detailState = ref.read(observationDetailProvider);
     return switch (detailState.selectedPeriod) {
-      TimePeriod.hours24 => 'Last 24 Hours',
+      TimePeriod.hours24 => 'Today',
       TimePeriod.days7 => 'Last 7 Days',
-      TimePeriod.days30 => 'Last 30 Days',
+      TimePeriod.days30 => 'This Month',
     };
   }
 
   @override
   Widget build(BuildContext context) {
     final detailState = ref.watch(observationDetailProvider);
-    final appBarTitle = _isBloodPressure ? 'Blood Pressure' : widget.observationType.displayName;
+    final appBarTitle = _isBloodPressure
+        ? 'Blood Pressure'
+        : widget.observationType.displayName;
 
     final filteredObservations = _getFilteredObservations();
-    
+
+    final bool isTodayPeriod = detailState.selectedPeriod == TimePeriod.hours24;
+    final bool hasSingleTodayRecord =
+        isTodayPeriod && filteredObservations.length == 1;
+
     List<Map<String, dynamic>> sortedObservations;
     int totalItems;
     int displayedItems;
@@ -202,41 +243,57 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     } else {
       sortedObservations = List<Map<String, dynamic>>.from(filteredObservations)
         ..sort((a, b) {
-          final dateA = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-          final dateB = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
+          final dateA =
+              DateTime.tryParse(
+                a['effectiveDateTime'] as String? ?? '',
+              )?.toLocal() ??
+              DateTime.now();
+          final dateB =
+              DateTime.tryParse(
+                b['effectiveDateTime'] as String? ?? '',
+              )?.toLocal() ??
+              DateTime.now();
           return dateB.compareTo(dateA);
         });
     }
 
     totalItems = sortedObservations.length;
-    displayedItems = (detailState.currentPage * _itemsPerPage).clamp(0, totalItems).toInt();
+    displayedItems = (detailState.currentPage * _itemsPerPage)
+        .clamp(0, totalItems)
+        .toInt();
     paginatedObservations = sortedObservations.take(displayedItems).toList();
     hasMore = displayedItems < totalItems;
 
-    final latestObs = sortedObservations.isNotEmpty ? sortedObservations.first : null;
+    final latestObs = sortedObservations.isNotEmpty
+        ? sortedObservations.first
+        : null;
     final chartData = _isBloodPressure
-      ? <FlSpot>[]
-      : _generateChartData(filteredObservations);
+        ? <FlSpot>[]
+        : _generateChartData(filteredObservations);
 
     // Build BP chart series from grouped observations (systolic/diastolic values)
     final systolicSeries = _isBloodPressure
-      ? sortedObservations
-        .where((e) => e['systolic'] != null)
-        .map((e) => {
-            'value': e['systolic'],
-            'effectiveDateTime': e['effectiveDateTime'],
-          })
-        .toList()
-      : <Map<String, dynamic>>[];
+        ? sortedObservations
+              .where((e) => e['systolic'] != null)
+              .map(
+                (e) => {
+                  'value': e['systolic'],
+                  'effectiveDateTime': e['effectiveDateTime'],
+                },
+              )
+              .toList()
+        : <Map<String, dynamic>>[];
     final diastolicSeries = _isBloodPressure
-      ? sortedObservations
-        .where((e) => e['diastolic'] != null)
-        .map((e) => {
-            'value': e['diastolic'],
-            'effectiveDateTime': e['effectiveDateTime'],
-          })
-        .toList()
-      : <Map<String, dynamic>>[];
+        ? sortedObservations
+              .where((e) => e['diastolic'] != null)
+              .map(
+                (e) => {
+                  'value': e['diastolic'],
+                  'effectiveDateTime': e['effectiveDateTime'],
+                },
+              )
+              .toList()
+        : <Map<String, dynamic>>[];
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -273,14 +330,21 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
             const SizedBox(height: 20),
             _buildPeriodSelector(),
             const SizedBox(height: 16),
-            if (_isBloodPressure)
+            if (hasSingleTodayRecord)
+              _buildSingleDataInfoCard(sortedObservations.first)
+            else if (_isBloodPressure)
               _buildBloodPressureChartCard(systolicSeries, diastolicSeries)
             else if (chartData.isNotEmpty)
               _buildChartCard(chartData)
             else
               _buildEmptyChartCard(),
             const SizedBox(height: 20),
-            _buildObservationsList(paginatedObservations, hasMore, totalItems, displayedItems),
+            _buildObservationsList(
+              paginatedObservations,
+              hasMore,
+              totalItems,
+              displayedItems,
+            ),
           ],
         ),
       ),
@@ -297,9 +361,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
-          _buildPeriodButton(TimePeriod.hours24, '24H'),
-          _buildPeriodButton(TimePeriod.days7, '7D'),
-          _buildPeriodButton(TimePeriod.days30, '30D'),
+          _buildPeriodButton(TimePeriod.hours24, 'Today'),
+          _buildPeriodButton(TimePeriod.days7, '7 days'),
+          _buildPeriodButton(TimePeriod.days30, 'This month'),
         ],
       ),
     );
@@ -338,8 +402,12 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
   Widget _buildChartCard(List<FlSpot> chartData) {
     // Calculate min and max for better chart scaling
     final values = chartData.map((spot) => spot.y).toList();
-    final minValue = values.isEmpty ? 0.0 : values.reduce((a, b) => a < b ? a : b);
-    final maxValue = values.isEmpty ? 100.0 : values.reduce((a, b) => a > b ? a : b);
+    final minValue = values.isEmpty
+        ? 0.0
+        : values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.isEmpty
+        ? 100.0
+        : values.reduce((a, b) => a > b ? a : b);
     final padding = (maxValue - minValue) * 0.1;
     final minY = (minValue - padding).clamp(0.0, minValue);
     final maxY = maxValue + padding;
@@ -378,7 +446,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                         toY: entry.value.y,
                         color: const Color(0xFF007AFF),
                         width: 8,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                     ],
                     showingTooltipIndicators: [],
@@ -394,14 +464,30 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                         if (index >= 0 && index < chartData.length) {
                           final obs = _getFilteredObservations();
                           obs.sort((a, b) {
-                            final dateA = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-                            final dateB = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
+                            final dateA =
+                                DateTime.tryParse(
+                                  a['effectiveDateTime'] as String? ?? '',
+                                )?.toLocal() ??
+                                DateTime.now();
+                            final dateB =
+                                DateTime.tryParse(
+                                  b['effectiveDateTime'] as String? ?? '',
+                                )?.toLocal() ??
+                                DateTime.now();
                             return dateA.compareTo(dateB);
                           });
                           if (index < obs.length) {
-                            final detailState = ref.read(observationDetailProvider);
-                            final dateTime = DateTime.tryParse(obs[index]['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-                            final dateFormat = detailState.selectedPeriod == TimePeriod.hours24
+                            final detailState = ref.read(
+                              observationDetailProvider,
+                            );
+                            final dateTime =
+                                DateTime.tryParse(
+                                  obs[index]['effectiveDateTime'] as String? ??
+                                      '',
+                                )?.toLocal() ??
+                                DateTime.now();
+                            final dateFormat =
+                                detailState.selectedPeriod == TimePeriod.hours24
                                 ? DateFormat('HH:mm')
                                 : DateFormat('MM/dd');
                             return Text(
@@ -458,16 +544,27 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       return _buildEmptyChartCard();
     }
 
-    final allValues = [...systolicSpots.map((e) => e.y), ...diastolicSpots.map((e) => e.y)];
-    final minValue = allValues.isEmpty ? 0.0 : allValues.reduce((a, b) => a < b ? a : b);
-    final maxValue = allValues.isEmpty ? 100.0 : allValues.reduce((a, b) => a > b ? a : b);
+    final allValues = [
+      ...systolicSpots.map((e) => e.y),
+      ...diastolicSpots.map((e) => e.y),
+    ];
+    final minValue = allValues.isEmpty
+        ? 0.0
+        : allValues.reduce((a, b) => a < b ? a : b);
+    final maxValue = allValues.isEmpty
+        ? 100.0
+        : allValues.reduce((a, b) => a > b ? a : b);
     final padding = (maxValue - minValue) * 0.1;
     final minY = (minValue - padding).clamp(0.0, minValue);
     final maxY = maxValue + padding;
 
     List<FlSpot> normalize(List<FlSpot> spots) {
       // Ensure x is sequential for display
-      return spots.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.y)).toList();
+      return spots
+          .asMap()
+          .entries
+          .map((e) => FlSpot(e.key.toDouble(), e.value.y))
+          .toList();
     }
 
     final systolicNorm = normalize(systolicSpots);
@@ -518,37 +615,74 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                 maxY: maxY,
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 32, getTitlesWidget: (value, meta) {
-                      final idx = value.toInt();
-                      final obs = _getFilteredObservations();
-                      obs.sort((a, b) {
-                        final dateA = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-                        final dateB = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-                        return dateA.compareTo(dateB);
-                      });
-                      if (idx >= 0 && idx < obs.length) {
-                        final detailState = ref.read(observationDetailProvider);
-                        final dateTime = DateTime.tryParse(obs[idx]['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
-                        final dateFormat = detailState.selectedPeriod == TimePeriod.hours24
-                            ? DateFormat('HH:mm')
-                            : DateFormat('MM/dd');
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(dateFormat.format(dateTime), style: const TextStyle(fontSize: 10)),
-                        );
-                      }
-                      return const Text('');
-                    }),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        final idx = value.toInt();
+                        final obs = _getFilteredObservations();
+                        obs.sort((a, b) {
+                          final dateA =
+                              DateTime.tryParse(
+                                a['effectiveDateTime'] as String? ?? '',
+                              )?.toLocal() ??
+                              DateTime.now();
+                          final dateB =
+                              DateTime.tryParse(
+                                b['effectiveDateTime'] as String? ?? '',
+                              )?.toLocal() ??
+                              DateTime.now();
+                          return dateA.compareTo(dateB);
+                        });
+                        if (idx >= 0 && idx < obs.length) {
+                          final detailState = ref.read(
+                            observationDetailProvider,
+                          );
+                          final dateTime =
+                              DateTime.tryParse(
+                                obs[idx]['effectiveDateTime'] as String? ?? '',
+                              )?.toLocal() ??
+                              DateTime.now();
+                          final dateFormat =
+                              detailState.selectedPeriod == TimePeriod.hours24
+                              ? DateFormat('HH:mm')
+                              : DateFormat('MM/dd');
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              dateFormat.format(dateTime),
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
                   ),
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                      return Text(value.toStringAsFixed(0), style: const TextStyle(fontSize: 10));
-                    }),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toStringAsFixed(0),
+                          style: const TextStyle(fontSize: 10),
+                        );
+                      },
+                    ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
-                gridData: const FlGridData(show: true, drawHorizontalLine: true, drawVerticalLine: false),
+                gridData: const FlGridData(
+                  show: true,
+                  drawHorizontalLine: true,
+                  drawVerticalLine: false,
+                ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   if (systolicNorm.isNotEmpty)
@@ -580,9 +714,19 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF1C1C1E))),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF1C1C1E)),
+        ),
       ],
     );
   }
@@ -612,10 +756,176 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
     );
   }
 
+  Widget _buildSingleDataInfoCard(Map<String, dynamic> obs) {
+    final effectiveDateTime = obs['effectiveDateTime'] as String?;
+    final dateTime = effectiveDateTime != null
+        ? DateTime.tryParse(effectiveDateTime)?.toLocal() ?? DateTime.now()
+        : DateTime.now();
+
+    if (_isBloodPressure) {
+      final systolic = obs['systolic'];
+      final diastolic = obs['diastolic'];
+      final unit = obs['unit'] as String? ?? 'mmHg';
+
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Today\'s only measurement',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF8E8E93),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${systolic ?? '--'} / ${diastolic ?? '--'}',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1C1C1E),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  unit,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF8E8E93),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: Color(0xFF8E8E93),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF8E8E93),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Charts are shown when there are at least two measurements in the selected period.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final value = obs['value'];
+    final unit = obs['unit'] as String?;
+    final notes = obs['notes'] as String?;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Today\'s only measurement',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8E8E93),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (value != null) ...[
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1C1C1E),
+                  ),
+                ),
+                if (unit != null) ...[
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      unit,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 16, color: Color(0xFF8E8E93)),
+              const SizedBox(width: 8),
+              Text(
+                DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
+              ),
+            ],
+          ),
+          if (notes != null && notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              notes,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF1C1C1E),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          const Text(
+            'Charts are shown when there are at least two measurements in the selected period.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatsCard(Map<String, dynamic> latestObs) {
     if (_isBloodPressure) {
       // Use grouped latest observation (with systolic/diastolic fields)
-      final latestDate = DateTime.tryParse(latestObs['effectiveDateTime'] as String? ?? '') ?? DateTime.now();
+      final latestDate =
+          DateTime.tryParse(
+            latestObs['effectiveDateTime'] as String? ?? '',
+          )?.toLocal() ??
+          DateTime.now();
 
       return Container(
         padding: const EdgeInsets.all(20),
@@ -660,7 +970,11 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: const Color(0xFF8E8E93)),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: const Color(0xFF8E8E93),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   DateFormat('MMM dd, yyyy • hh:mm a').format(latestDate),
@@ -678,7 +992,7 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
 
     final effectiveDateTime = latestObs['effectiveDateTime'] as String?;
     final dateTime = effectiveDateTime != null
-        ? DateTime.tryParse(effectiveDateTime) ?? DateTime.now()
+        ? DateTime.tryParse(effectiveDateTime)?.toLocal() ?? DateTime.now()
         : DateTime.now();
 
     return Container(
@@ -735,14 +1049,12 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
               const SizedBox(width: 8),
               Text(
                 DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF8E8E93),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
               ),
             ],
           ),
-          if (latestObs['notes'] != null && (latestObs['notes'] as String).isNotEmpty) ...[
+          if (latestObs['notes'] != null &&
+              (latestObs['notes'] as String).isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -828,11 +1140,15 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
             ...observations.map((obs) {
               final effectiveDateTime = obs['effectiveDateTime'] as String?;
               final dateTime = effectiveDateTime != null
-                  ? DateTime.tryParse(effectiveDateTime) ?? DateTime.now()
+                  ? DateTime.tryParse(effectiveDateTime)?.toLocal() ??
+                        DateTime.now()
                   : DateTime.now();
 
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 title: Text(
                   DateFormat('MMM dd, yyyy').format(dateTime),
                   style: const TextStyle(
@@ -852,7 +1168,8 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                         color: Color(0xFF8E8E93),
                       ),
                     ),
-                    if (obs['notes'] != null && (obs['notes'] as String).isNotEmpty) ...[
+                    if (obs['notes'] != null &&
+                        (obs['notes'] as String).isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         obs['notes'] as String,
@@ -890,29 +1207,29 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                         ],
                       )
                     : (obs['value'] != null
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${obs['value']}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1C1C1E),
-                                ),
-                              ),
-                              if (obs['unit'] != null)
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
                                 Text(
-                                  obs['unit'] as String,
+                                  '${obs['value']}',
                                   style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF8E8E93),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1C1C1E),
                                   ),
                                 ),
-                            ],
-                          )
-                        : null),
+                                if (obs['unit'] != null)
+                                  Text(
+                                    obs['unit'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF8E8E93),
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : null),
               );
             }),
             if (hasMore)
@@ -921,7 +1238,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                 child: Center(
                   child: TextButton.icon(
                     onPressed: () {
-                      ref.read(observationDetailProvider.notifier).incrementPage();
+                      ref
+                          .read(observationDetailProvider.notifier)
+                          .incrementPage();
                     },
                     icon: const Icon(Icons.expand_more),
                     label: const Text('Load More'),
@@ -1038,10 +1357,7 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.close,
-                          color: Color(0xFF8E8E93),
-                        ),
+                        icon: const Icon(Icons.close, color: Color(0xFF8E8E93)),
                       ),
                     ],
                   ),
@@ -1077,14 +1393,19 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
                                 label: '$title ($unit)',
                                 controller: valueController,
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d*\.?\d*'),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 16),
                               CustomTextField(
                                 label: 'Notes (Optional)',
                                 controller: notesController,
                                 maxLines: 3,
-                                hint: 'Add any additional notes about this reading...',
+                                hint:
+                                    'Add any additional notes about this reading...',
                               ),
                             ],
                           ),
@@ -1150,7 +1471,11 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
 
   /// Submits blood pressure as two separate FHIR-compliant observations
   /// Submits blood pressure as a single FHIR panel observation with components
-  Future<void> _submitBloodPressure(double systolic, double diastolic, String? notes) async {
+  Future<void> _submitBloodPressure(
+    double systolic,
+    double diastolic,
+    String? notes,
+  ) async {
     try {
       final observationService = ref.read(observationServiceProvider);
       final queueService = ref.read(offlineQueueServiceProvider);
@@ -1158,7 +1483,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       // Check internet connectivity
       bool hasInternet = false;
       try {
-        final result = await InternetAddress.lookup('8.8.8.8').timeout(const Duration(seconds: 2));
+        final result = await InternetAddress.lookup(
+          '8.8.8.8',
+        ).timeout(const Duration(seconds: 2));
         hasInternet = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       } catch (_) {
         hasInternet = false;
@@ -1168,18 +1495,21 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
 
       if (hasInternet) {
         try {
-          final success = await observationService.submitBloodPressurePanelObservation(
-            systolic: systolic,
-            diastolic: diastolic,
-            notes: notes,
-            source: DataSource.manual,
-          );
+          final success = await observationService
+              .submitBloodPressurePanelObservation(
+                systolic: systolic,
+                diastolic: diastolic,
+                notes: notes,
+                source: DataSource.manual,
+              );
           if (!mounted) return;
-          
+
           if (success) {
             ref.invalidate(latestObservationsProvider);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Blood Pressure recorded successfully')),
+              const SnackBar(
+                content: Text('Blood Pressure recorded successfully'),
+              ),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1210,7 +1540,11 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
           ref.invalidate(queuedObservationsProvider);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Blood Pressure saved offline. Will sync when online.')),
+            const SnackBar(
+              content: Text(
+                'Blood Pressure saved offline. Will sync when online.',
+              ),
+            ),
           );
         }
       } else {
@@ -1237,7 +1571,11 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
         ref.invalidate(queuedObservationsProvider);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Blood Pressure saved offline. Will sync when online.')),
+          const SnackBar(
+            content: Text(
+              'Blood Pressure saved offline. Will sync when online.',
+            ),
+          ),
         );
       }
 
@@ -1246,9 +1584,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -1266,9 +1604,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
 
       if (value.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a value')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Please enter a value')));
         return;
       }
 
@@ -1287,7 +1625,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       // Check internet connectivity
       bool hasInternet = false;
       try {
-        final result = await InternetAddress.lookup('8.8.8.8').timeout(const Duration(seconds: 2));
+        final result = await InternetAddress.lookup(
+          '8.8.8.8',
+        ).timeout(const Duration(seconds: 2));
         hasInternet = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       } catch (_) {
         hasInternet = false;
@@ -1297,9 +1637,11 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
 
       if (hasInternet) {
         try {
-          final success = await observationService.submitObservation(observation);
+          final success = await observationService.submitObservation(
+            observation,
+          );
           if (!mounted) return;
-          
+
           if (success) {
             // Add to local observations list
             _observations.insert(0, {
@@ -1318,7 +1660,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
             ref.invalidate(queuedObservationsProvider);
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$title saved offline. Will sync when online.')),
+              SnackBar(
+                content: Text('$title saved offline. Will sync when online.'),
+              ),
             );
           }
         } catch (e) {
@@ -1327,7 +1671,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
           ref.invalidate(queuedObservationsProvider);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$title saved offline. Will sync when online.')),
+            SnackBar(
+              content: Text('$title saved offline. Will sync when online.'),
+            ),
           );
         }
       } else {
@@ -1336,7 +1682,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
         ref.invalidate(queuedObservationsProvider);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$title saved offline. Will sync when online.')),
+          SnackBar(
+            content: Text('$title saved offline. Will sync when online.'),
+          ),
         );
       }
 
@@ -1346,9 +1694,9 @@ class _ObservationDetailScreenState extends ConsumerState<ObservationDetailScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }

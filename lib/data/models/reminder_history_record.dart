@@ -16,13 +16,13 @@ class ReminderHistoryRecord {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'reminderId': reminderId,
-        'title': title,
-        'hour': time.hour,
-        'minute': time.minute,
-        'dateKey': dateKey,
-      };
+    'id': id,
+    'reminderId': reminderId,
+    'title': title,
+    'hour': time.hour,
+    'minute': time.minute,
+    'dateKey': dateKey,
+  };
 
   factory ReminderHistoryRecord.fromJson(Map<String, dynamic> json) {
     return ReminderHistoryRecord(

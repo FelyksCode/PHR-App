@@ -1,7 +1,8 @@
 /// Example: Error Handling in Auth Flow
-/// 
+///
 /// This demonstrates how to use the centralized error handling system
 /// in a login/authentication flow.
+library;
 
 import 'dart:async';
 import 'package:dio/dio.dart';
@@ -21,7 +22,7 @@ class AuthRepositoryExample {
   AuthRepositoryExample(this._dio);
 
   /// Login with proper error handling
-  /// 
+  ///
   /// Key points:
   /// 1. All exceptions are converted to AppError
   /// 2. Errors are logged centrally
@@ -49,7 +50,7 @@ class AuthRepositoryExample {
     } on DioException catch (e) {
       // Convert Dio errors to domain errors
       final appError = ApiErrorMapper.fromException(e);
-      
+
       // Log with appropriate severity
       final severity = _getLoginErrorSeverity(appError);
       AppErrorLogger.logError(
@@ -57,7 +58,7 @@ class AuthRepositoryExample {
         source: 'AuthRepository.login',
         severity: severity,
       );
-      
+
       throw appError;
     } catch (e, st) {
       // Unexpected errors are wrapped as UnknownError
@@ -67,13 +68,13 @@ class AuthRepositoryExample {
         stackTrace: st,
         originalException: e,
       );
-      
+
       AppErrorLogger.logError(
         error,
         source: 'AuthRepository.login',
         severity: ErrorSeverity.high,
       );
-      
+
       throw error;
     }
   }
@@ -123,13 +124,14 @@ class AuthRepositoryExample {
 // Example 2: UI Layer - Screen/Provider handling errors
 // ============================================================================
 
-
 class LoginScreenExample extends ConsumerWidget {
+  const LoginScreenExample({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch the login provider
     // Note: Implementation depends on your actual state management setup
-    
+
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
       body: SingleChildScrollView(
@@ -175,7 +177,7 @@ class LoginScreenExample extends ConsumerWidget {
     try {
       // Call your login method that throws AppError
       // final result = await ref.read(authRepositoryProvider).login(email, password);
-      
+
       // Handle based on error type
     } on LocalValidationError catch (e) {
       // Show inline field errors for local validation
@@ -197,10 +199,7 @@ class LoginScreenExample extends ConsumerWidget {
   }
 
   /// Shows field-level validation errors
-  void _showValidationErrors(
-    BuildContext context,
-    LocalValidationError error,
-  ) {
+  void _showValidationErrors(BuildContext context, LocalValidationError error) {
     // Implementation: Update UI to show field errors
     if (error.fieldErrors != null) {
       for (final entry in error.fieldErrors!.entries) {
@@ -243,11 +242,7 @@ class LoginScreenExample extends ConsumerWidget {
   }
 
   /// Shows error dialog for critical errors
-  void _showErrorDialog(
-    BuildContext context,
-    String title,
-    AppError error,
-  ) {
+  void _showErrorDialog(BuildContext context, String title, AppError error) {
     final message = ErrorMessageResolver.resolve(error, context);
     showDialog(
       context: context,
@@ -271,14 +266,12 @@ class LoginScreenExample extends ConsumerWidget {
 
 class ObservationSyncExample {
   /// Syncs observations with retry logic
-  /// 
+  ///
   /// Demonstrates:
   /// - Type-specific error handling
   /// - Retry logic for retryable errors
   /// - Graceful degradation
-  Future<void> syncObservations(
-    List<ObservationEntity> observations,
-  ) async {
+  Future<void> syncObservations(List<ObservationEntity> observations) async {
     const maxRetries = 3;
     var retryCount = 0;
 
@@ -353,24 +346,15 @@ class FitbitVendorIntegrationExample {
       // If no connection: NetworkError
     } on UnauthorizedError catch (e) {
       // User cancelled or invalid credentials
-      AppErrorLogger.logError(
-        e,
-        source: 'FitbitIntegration.authenticate',
-      );
+      AppErrorLogger.logError(e, source: 'FitbitIntegration.authenticate');
       // Show user-friendly message: "Please try connecting again"
     } on NetworkError catch (e) {
       // No internet - user can retry when online
-      AppErrorLogger.logError(
-        e,
-        source: 'FitbitIntegration.authenticate',
-      );
+      AppErrorLogger.logError(e, source: 'FitbitIntegration.authenticate');
       // Show retry prompt
     } on ServerError catch (e) {
       // Fitbit service down
-      AppErrorLogger.logCritical(
-        e,
-        source: 'FitbitIntegration.authenticate',
-      );
+      AppErrorLogger.logCritical(e, source: 'FitbitIntegration.authenticate');
       // Show message: "Fitbit service is temporarily unavailable"
     }
   }

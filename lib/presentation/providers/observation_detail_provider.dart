@@ -27,10 +27,12 @@ class ObservationDetailState {
 /// State notifier for observation detail
 class ObservationDetailNotifier extends StateNotifier<ObservationDetailState> {
   ObservationDetailNotifier()
-      : super(const ObservationDetailState(
+    : super(
+        const ObservationDetailState(
           selectedPeriod: TimePeriod.days7,
           currentPage: 1,
-        ));
+        ),
+      );
 
   void setPeriod(TimePeriod period) {
     state = state.copyWith(selectedPeriod: period, currentPage: 1);
@@ -47,6 +49,7 @@ class ObservationDetailNotifier extends StateNotifier<ObservationDetailState> {
 
 /// Provider for observation detail state
 final observationDetailProvider =
-    StateNotifierProvider.autoDispose<ObservationDetailNotifier, ObservationDetailState>(
-  (ref) => ObservationDetailNotifier(),
-);
+    StateNotifierProvider.autoDispose<
+      ObservationDetailNotifier,
+      ObservationDetailState
+    >((ref) => ObservationDetailNotifier());

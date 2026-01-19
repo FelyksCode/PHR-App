@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
-import 'constants/health_permissions.dart';
 import 'core/constants/api_constants.dart';
 import 'core/network/api_client.dart';
 import 'presentation/providers/locale_provider.dart';
@@ -12,19 +12,28 @@ import 'presentation/screens/health/heart_rate_monitor_screen.dart';
 import 'presentation/screens/dashboard/main_shell.dart';
 import 'presentation/screens/settings/permissions_screen.dart';
 import 'presentation/screens/vendors/vendor_selection_screen.dart';
-import 'presentation/screens/observations/health_observation_list_screen.dart';
 import 'providers/auth_provider.dart';
-import 'services/health_connect_service.dart';
+import 'providers/health_permission_checker_provider.dart';
+import 'services/notification_service.dart';
+import 'services/workmanager_service.dart';
 
-// Add a provider to track permissions status
+// Provider to track permissions status (prevents repeated async calls)
 final permissionsRequestedProvider = StateProvider<bool>((ref) => false);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize API client with Android emulator IP
+
   ApiClient.initialize(baseUrl: ApiConstants.baseUrl);
-  
+
+  await NotificationService.instance.init();
+  await NotificationService.instance.requestNotificationPermission();
+
+  if (Platform.isAndroid) {
+    await WorkManagerService.instance.initialize(
+      isInDebugMode: false, // Set to true for debugging background tasks
+    );
+  }
+
   runApp(const ProviderScope(child: PHRApp()));
 }
 
@@ -34,9 +43,10 @@ class PHRApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    
+
     return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Personal Health Record',
+      onGenerateTitle: (context) =>
+          AppLocalizations.of(context)?.appTitle ?? 'Personal Health Record',
       debugShowCheckedModeBanner: false,
       locale: locale,
       localizationsDelegates: const [
@@ -45,10 +55,7 @@ class PHRApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('id'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('id')],
       theme: ThemeData(
         primarySwatch: Colors.blue,
         primaryColor: Colors.white,
@@ -119,87 +126,73 @@ class PHRApp extends ConsumerWidget {
         '/dashboard': (context) => const MainShell(),
         '/heart-rate-monitor': (context) => const HeartRateMonitorScreen(),
         '/vendors': (context) => const VendorSelectionScreen(),
-        '/observations': (context) => const HealthObservationListScreen(),
       },
     );
   }
 }
 
-class AuthWrapper extends ConsumerWidget {
+class AuthWrapper extends ConsumerStatefulWidget {
   const AuthWrapper({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends ConsumerState<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger initial permission check
+    Future.microtask(() {
+      ref.read(healthPermissionCheckerProvider.notifier).checkPermissions();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final permissionsRequested = ref.watch(permissionsRequestedProvider);
-    
+    final permissionCheckState = ref.watch(healthPermissionCheckerProvider);
+
     // Show loading while checking auth status
     if (authState.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    
+
     // Show login screen if not authenticated
     if (!authState.isAuthenticated) {
       return const LoginScreen();
     }
-    
-    // If authenticated, check permissions before deciding which screen to show
-    return FutureBuilder<bool>(
-      future: _checkAllPermissionsGranted(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-        
-        final allPermissionsGranted = snapshot.data ?? false;
-        
+
+    // If authenticated, use cached permission check
+    return permissionCheckState.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stack) {
+        debugPrint('[AuthWrapper] Permission check error: $error');
+        // On error, show permissions screen to allow user to retry
+        return const PermissionsScreen();
+      },
+      data: (result) {
+        final allPermissionsGranted = result.allPermissionsGranted;
+
         // If all permissions are granted, go directly to dashboard
         if (allPermissionsGranted) {
-          // Also mark permissions as requested to avoid showing permission screen later
+          // Mark permissions as requested to avoid showing permission screen later
           Future.microtask(() {
             ref.read(permissionsRequestedProvider.notifier).state = true;
           });
           return const MainShell();
         }
-        
+
         // If permissions not requested and not all granted, show permissions screen
         if (!permissionsRequested) {
           return const PermissionsScreen();
         }
-        
+
         // Show dashboard screen if permissions were requested (even if some denied)
         return const MainShell();
       },
     );
-  }
-  
-  Future<bool> _checkAllPermissionsGranted() async {
-    try {
-      final healthService = HealthConnectService.instance;
-      await healthService.initialize();
-      
-      // Check if Health Connect is available
-      final isAvailable = await healthService.isFeatureAvailable();
-      if (!isAvailable) {
-        return false; // If Health Connect not available, consider permissions not granted
-      }
-      
-      // Check if all required permissions are granted
-      final permissions = HealthPermissions.requiredPermissions;
-      final hasAllPermissions = await healthService.hasAllPermissions(permissions: permissions);
-      
-      return hasAllPermissions;
-    } catch (e) {
-      // If error checking permissions, assume not granted
-      return false;
-    }
   }
 }

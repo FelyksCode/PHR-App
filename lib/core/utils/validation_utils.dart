@@ -23,11 +23,14 @@ class ValidationUtils {
     return null;
   }
 
-  static String? validateBloodPressure(String? value, {required bool isSystolic}) {
+  static String? validateBloodPressure(
+    String? value, {
+    required bool isSystolic,
+  }) {
     if (value == null || value.isEmpty) return 'Blood pressure is required';
     final bp = int.tryParse(value);
     if (bp == null || bp <= 0) return 'Enter valid blood pressure';
-    
+
     if (isSystolic) {
       if (bp < 60 || bp > 250) return 'Systolic BP out of range (60-250)';
     } else {
@@ -46,7 +49,9 @@ class ValidationUtils {
 
   static String? validateConditionDescription(String? value) {
     if (value == null || value.trim().isEmpty) return 'Description is required';
-    if (value.trim().length < 5) return 'Please provide more details (at least 5 characters)';
+    if (value.trim().length < 5) {
+      return 'Please provide more details (at least 5 characters)';
+    }
     return null;
   }
 

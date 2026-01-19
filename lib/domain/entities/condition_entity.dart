@@ -3,7 +3,7 @@ enum ConditionCategory {
   sideEffect('side_effect', 'Side Effect');
 
   const ConditionCategory(this.name, this.displayName);
-  
+
   final String name;
   final String displayName;
 }
@@ -14,7 +14,7 @@ enum ConditionSeverity {
   severe('severe', 'Severe', 'Life-Threatening');
 
   const ConditionSeverity(this.name, this.displayName, this.description);
-  
+
   final String name;
   final String displayName;
   final String description;

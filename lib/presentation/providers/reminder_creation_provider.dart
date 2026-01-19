@@ -88,6 +88,7 @@ class ReminderCreationNotifier extends StateNotifier<ReminderCreationState> {
 
 /// Provider for reminder creation state
 final reminderCreationProvider =
-    StateNotifierProvider.autoDispose<ReminderCreationNotifier, ReminderCreationState>(
-  (ref) => ReminderCreationNotifier(),
-);
+    StateNotifierProvider.autoDispose<
+      ReminderCreationNotifier,
+      ReminderCreationState
+    >((ref) => ReminderCreationNotifier());

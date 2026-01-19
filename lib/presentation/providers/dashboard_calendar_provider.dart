@@ -28,11 +28,13 @@ class DashboardCalendarState {
 /// State notifier for dashboard calendar view
 class DashboardCalendarNotifier extends StateNotifier<DashboardCalendarState> {
   DashboardCalendarNotifier()
-      : super(DashboardCalendarState(
+    : super(
+        DashboardCalendarState(
           selectedDate: DateTime.now(),
           focusedDate: DateTime.now(),
           isMonthView: false,
-        ));
+        ),
+      );
 
   void selectDate(DateTime date) {
     state = state.copyWith(selectedDate: date);
@@ -84,5 +86,5 @@ class DashboardCalendarNotifier extends StateNotifier<DashboardCalendarState> {
 /// Provider for dashboard calendar state
 final dashboardCalendarProvider =
     StateNotifierProvider<DashboardCalendarNotifier, DashboardCalendarState>(
-  (ref) => DashboardCalendarNotifier(),
-);
+      (ref) => DashboardCalendarNotifier(),
+    );

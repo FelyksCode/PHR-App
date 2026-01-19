@@ -25,7 +25,6 @@ ObservationModel _$ObservationModelFromJson(Map<String, dynamic> json) =>
       notes: json['notes'] as String?,
     );
 
-
 const _$ObservationTypeEnumMap = {
   ObservationType.bodyWeight: 'bodyWeight',
   ObservationType.bodyHeight: 'bodyHeight',

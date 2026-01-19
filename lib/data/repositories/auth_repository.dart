@@ -11,18 +11,18 @@ class AuthRepository {
   Future<AuthState> login(String email, String password) async {
     try {
       final loginRequest = LoginRequest(email: email, password: password);
-      
+
       final loginResponse = await _authService.login(loginRequest);
-      
+
       // Store token securely
       await SecureStorageService.saveAccessToken(loginResponse.accessToken);
-      
+
       // Fetch user data using the token
       final user = await _authService.getMe(loginResponse.accessToken);
-      
+
       // Store user data securely
       await SecureStorageService.saveUser(user);
-      
+
       return AuthState(
         user: user,
         accessToken: loginResponse.accessToken,
@@ -41,12 +41,13 @@ class AuthRepository {
     if (token == null) {
       throw AuthException('No access token found');
     }
-    
+
     try {
       return await _authService.getMe(token);
     } on AuthException catch (e) {
       // If token is invalid, clear stored data
-      if (e.message.contains('Token expired') || e.message.contains('invalid')) {
+      if (e.message.contains('Token expired') ||
+          e.message.contains('invalid')) {
         await logout();
       }
       rethrow;
@@ -57,7 +58,7 @@ class AuthRepository {
   Future<AuthState> autoLogin({bool skipNetworkValidation = false}) async {
     try {
       final storedState = await SecureStorageService.getStoredAuthState();
-      
+
       if (!storedState.isAuthenticated || storedState.accessToken == null) {
         return AuthState.initial;
       }
@@ -73,7 +74,7 @@ class AuthRepository {
 
       // Validate token by fetching user data
       final user = await getCurrentUser();
-      
+
       return storedState.copyWith(
         user: user,
         isAuthenticated: true,
@@ -84,9 +85,12 @@ class AuthRepository {
       // If we're offline but have a stored token+user, allow offline auth
       final storedState = await SecureStorageService.getStoredAuthState();
       final isOffline = _isOfflineMessage(e.message);
-      final isInvalid = e.message.contains('Token expired') || e.message.contains('invalid');
+      final isInvalid =
+          e.message.contains('Token expired') || e.message.contains('invalid');
 
-      if (isOffline && storedState.isAuthenticated && storedState.user != null) {
+      if (isOffline &&
+          storedState.isAuthenticated &&
+          storedState.user != null) {
         return storedState.copyWith(
           isAuthenticated: true,
           isLoading: false,

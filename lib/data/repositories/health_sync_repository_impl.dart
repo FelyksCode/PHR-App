@@ -14,11 +14,11 @@ import '../../services/api_service.dart';
 class HealthSyncRepositoryImpl implements HealthSyncRepository {
   final ApiService _apiService;
   final health_pkg.Health _health = health_pkg.Health();
-  
+
   // Sync status storage key
   static const String _syncStatusKey = 'health_sync_status';
   static const String _lastSyncKey = 'last_sync_timestamp';
-  
+
   HealthSyncRepositoryImpl(this._apiService);
 
   @override
@@ -26,20 +26,24 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
     try {
       // Convert to platform health types
       final healthTypes = _convertToHealthTypes(dataTypes);
-      
+
       if (Platform.isAndroid) {
         // Request Health Connect permissions
-        final hasPermissions = await _health.hasPermissions(
-          healthTypes,
-          permissions: healthTypes.map((type) => 
-            health_pkg.HealthDataAccess.READ).toList(),
-        ) ?? false;
-        
+        final hasPermissions =
+            await _health.hasPermissions(
+              healthTypes,
+              permissions: healthTypes
+                  .map((type) => health_pkg.HealthDataAccess.READ)
+                  .toList(),
+            ) ??
+            false;
+
         if (!hasPermissions) {
           return await _health.requestAuthorization(
             healthTypes,
-            permissions: healthTypes.map((type) => 
-              health_pkg.HealthDataAccess.READ).toList(),
+            permissions: healthTypes
+                .map((type) => health_pkg.HealthDataAccess.READ)
+                .toList(),
           );
         }
         return true;
@@ -47,11 +51,12 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
         // Request HealthKit permissions
         return await _health.requestAuthorization(
           healthTypes,
-          permissions: healthTypes.map((type) => 
-            health_pkg.HealthDataAccess.READ).toList(),
+          permissions: healthTypes
+              .map((type) => health_pkg.HealthDataAccess.READ)
+              .toList(),
         );
       }
-      
+
       return false;
     } catch (e) {
       // print('Error requesting health permissions: $e');
@@ -64,10 +69,12 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
     try {
       final healthTypes = _convertToHealthTypes(dataTypes);
       return await _health.hasPermissions(
-        healthTypes,
-        permissions: healthTypes.map((type) => 
-          health_pkg.HealthDataAccess.READ).toList(),
-      ) ?? false;
+            healthTypes,
+            permissions: healthTypes
+                .map((type) => health_pkg.HealthDataAccess.READ)
+                .toList(),
+          ) ??
+          false;
     } catch (e) {
       AppErrorLogger.logError(
         UnknownError(
@@ -129,7 +136,7 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
       final prefs = await SharedPreferences.getInstance();
       final statusJson = prefs.getString(_syncStatusKey);
       final lastSyncTimestamp = prefs.getInt(_lastSyncKey);
-      
+
       if (statusJson != null) {
         final statusMap = json.decode(statusJson) as Map<String, dynamic>;
         return HealthSyncEntity(
@@ -137,20 +144,24 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
             (e) => e.toString() == statusMap['status'],
             orElse: () => SyncStatus.idle,
           ),
-          lastSyncTime: lastSyncTimestamp != null 
-            ? DateTime.fromMillisecondsSinceEpoch(lastSyncTimestamp)
-            : null,
-          permittedDataTypes: (statusMap['permittedDataTypes'] as List<dynamic>?)
-            ?.map((e) => HealthDataType.values.firstWhere(
-              (type) => type.toString() == e,
-              orElse: () => HealthDataType.heartRate,
-            ))
-            .toList() ?? [],
+          lastSyncTime: lastSyncTimestamp != null
+              ? DateTime.fromMillisecondsSinceEpoch(lastSyncTimestamp)
+              : null,
+          permittedDataTypes:
+              (statusMap['permittedDataTypes'] as List<dynamic>?)
+                  ?.map(
+                    (e) => HealthDataType.values.firstWhere(
+                      (type) => type.toString() == e,
+                      orElse: () => HealthDataType.heartRate,
+                    ),
+                  )
+                  .toList() ??
+              [],
           totalSyncedObservations: statusMap['totalSyncedObservations'] ?? 0,
           errorMessage: statusMap['errorMessage'],
         );
       }
-      
+
       // Return default status if none exists
       return const HealthSyncEntity(
         status: SyncStatus.idle,
@@ -174,7 +185,7 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
         ),
         source: 'HealthSyncRepository.getSyncStatus',
       );
-      
+
       // Return default status on error
       return const HealthSyncEntity(
         status: SyncStatus.idle,
@@ -196,15 +207,20 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
       final prefs = await SharedPreferences.getInstance();
       final statusMap = {
         'status': status.status.toString(),
-        'permittedDataTypes': status.permittedDataTypes.map((e) => e.toString()).toList(),
+        'permittedDataTypes': status.permittedDataTypes
+            .map((e) => e.toString())
+            .toList(),
         'totalSyncedObservations': status.totalSyncedObservations,
         'errorMessage': status.errorMessage,
       };
-      
+
       await prefs.setString(_syncStatusKey, json.encode(statusMap));
-      
+
       if (status.lastSyncTime != null) {
-        await prefs.setInt(_lastSyncKey, status.lastSyncTime!.millisecondsSinceEpoch);
+        await prefs.setInt(
+          _lastSyncKey,
+          status.lastSyncTime!.millisecondsSinceEpoch,
+        );
       }
     } catch (e, st) {
       // Log and throw as a structured AppError
@@ -214,19 +230,21 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
         stackTrace: st,
         originalException: e,
       );
-      
+
       AppErrorLogger.logError(
         error,
         source: 'HealthSyncRepository.updateSyncStatus',
         severity: ErrorSeverity.high,
       );
-      
+
       throw error;
     }
   }
 
   @override
-  Future<bool> submitSyncedObservations(List<ObservationEntity> observations) async {
+  Future<bool> submitSyncedObservations(
+    List<ObservationEntity> observations,
+  ) async {
     try {
       for (final observation in observations) {
         final model = ObservationModel.fromEntity(observation);
@@ -253,13 +271,13 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
           originalException: e,
         ),
       };
-      
+
       AppErrorLogger.logError(
         error,
         source: 'HealthSyncRepository.submitSyncedObservations',
         severity: ErrorSeverity.high,
       );
-      
+
       return false;
     }
   }
@@ -269,23 +287,27 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
     List<HealthDataPoint> healthData,
     DataSource source,
   ) {
-    return healthData.map((dataPoint) => 
-      ObservationEntity(
-        id: 'sync_${DateTime.now().millisecondsSinceEpoch}',
-        type: dataPoint.type.observationType,
-        value: dataPoint.value,
-        unit: dataPoint.unit,
-        timestamp: dataPoint.timestamp,
-        patientId: 'patient-1',
-        deviceInfo: dataPoint.deviceInfo,
-        notes: 'Synced from ${source.displayName}',
-        source: source,
-      )
-    ).toList();
+    return healthData
+        .map(
+          (dataPoint) => ObservationEntity(
+            id: 'sync_${DateTime.now().millisecondsSinceEpoch}',
+            type: dataPoint.type.observationType,
+            value: dataPoint.value,
+            unit: dataPoint.unit,
+            timestamp: dataPoint.timestamp,
+            patientId: 'patient-1',
+            deviceInfo: dataPoint.deviceInfo,
+            notes: 'Synced from ${source.displayName}',
+            source: source,
+          ),
+        )
+        .toList();
   }
 
   // Helper methods
-  List<health_pkg.HealthDataType> _convertToHealthTypes(List<HealthDataType> dataTypes) {
+  List<health_pkg.HealthDataType> _convertToHealthTypes(
+    List<HealthDataType> dataTypes,
+  ) {
     return dataTypes.map((type) {
       switch (type) {
         case HealthDataType.heartRate:
@@ -310,16 +332,20 @@ class HealthSyncRepositoryImpl implements HealthSyncRepository {
     }).toList();
   }
 
-  List<HealthDataPoint> _convertToHealthDataPoints(List<health_pkg.HealthDataPoint> healthData) {
-    return healthData.map((point) => 
-      HealthDataPoint(
-        type: _convertFromHealthType(point.type),
-        value: double.tryParse(point.value.toString()) ?? 0.0,
-        unit: _getUnitForType(_convertFromHealthType(point.type)),
-        timestamp: point.dateFrom,
-        deviceInfo: point.sourceId,
-      )
-    ).toList();
+  List<HealthDataPoint> _convertToHealthDataPoints(
+    List<health_pkg.HealthDataPoint> healthData,
+  ) {
+    return healthData
+        .map(
+          (point) => HealthDataPoint(
+            type: _convertFromHealthType(point.type),
+            value: double.tryParse(point.value.toString()) ?? 0.0,
+            unit: _getUnitForType(_convertFromHealthType(point.type)),
+            timestamp: point.dateFrom,
+            deviceInfo: point.sourceId,
+          ),
+        )
+        .toList();
   }
 
   HealthDataType _convertFromHealthType(health_pkg.HealthDataType healthType) {

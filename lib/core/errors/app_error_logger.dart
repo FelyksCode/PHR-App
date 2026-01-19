@@ -1,15 +1,10 @@
 import 'app_error.dart';
 
 /// Severity levels for error logging
-enum ErrorSeverity {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum ErrorSeverity { low, medium, high, critical }
 
 /// Centralized error logging system
-/// 
+///
 /// This handles all error logging and reporting without UI involvement.
 /// Logs include error type, code, and stack traces (internal only).
 abstract class AppErrorLogger {
@@ -81,12 +76,8 @@ abstract class AppErrorLogger {
   /// Extracts type-specific metadata from each error type
   static Map<String, dynamic> _extractTypeSpecificData(AppError error) {
     return switch (error) {
-      NetworkError e => {
-        'isRetryable': e.isRetryable,
-      },
-      UnauthorizedError e => {
-        'shouldLogout': e.shouldLogout,
-      },
+      NetworkError e => {'isRetryable': e.isRetryable},
+      UnauthorizedError e => {'shouldLogout': e.shouldLogout},
       ForbiddenError e => {
         if (e.requiredPermissions != null)
           'requiredPermissions': e.requiredPermissions,
@@ -96,12 +87,10 @@ abstract class AppErrorLogger {
         if (e.resourceId != null) 'resourceId': e.resourceId,
       },
       ValidationError e => {
-        if (e.fieldErrors != null)
-          'fieldErrorCount': e.fieldErrors!.length,
+        if (e.fieldErrors != null) 'fieldErrorCount': e.fieldErrors!.length,
       },
       LocalValidationError e => {
-        if (e.fieldErrors != null)
-          'fieldErrorCount': e.fieldErrors!.length,
+        if (e.fieldErrors != null) 'fieldErrorCount': e.fieldErrors!.length,
       },
       ServerError e => {
         'statusCode': e.statusCode,
@@ -134,7 +123,7 @@ abstract class AppErrorLogger {
   }
 
   /// Sends the log entry to the actual logging backend
-  /// 
+  ///
   /// This is where you'd integrate with:
   /// - Firebase Crashlytics
   /// - Sentry
@@ -146,7 +135,7 @@ abstract class AppErrorLogger {
   ) {
     // TODO: Integrate with your preferred logging backend
     // Example implementations:
-    
+
     // Firebase Crashlytics:
     // if (severity.index >= ErrorSeverity.high.index) {
     //   FirebaseCrashlytics.instance.recordError(
@@ -171,9 +160,11 @@ abstract class AppErrorLogger {
     ErrorSeverity severity,
   ) {
     final prefix = _getSeverityPrefix(severity);
-    print('$prefix [${logEntry['timestamp']}] ${logEntry['errorType']} '
-        '(${logEntry['errorCode']}): ${logEntry['errorMessage']}');
-    
+    print(
+      '$prefix [${logEntry['timestamp']}] ${logEntry['errorType']} '
+      '(${logEntry['errorCode']}): ${logEntry['errorMessage']}',
+    );
+
     if (logEntry.containsKey('stackTrace')) {
       print('Stack trace:\n${logEntry['stackTrace']}');
     }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../l10n/app_localizations.dart';
+import 'package:phr_app/l10n/app_localizations.dart';
 import 'app_error.dart';
 
 /// Resolves human-readable, localized messages for AppError instances.
-/// 
+///
 /// This layer ensures:
 /// - Messages are non-technical and user-friendly
 /// - Localization support across all error types
@@ -115,10 +115,7 @@ abstract class ErrorMessageResolver {
     return 'Please check your input and try again.';
   }
 
-  static String _serverErrorMessage(
-    ServerError error,
-    AppLocalizations l10n,
-  ) {
+  static String _serverErrorMessage(ServerError error, AppLocalizations l10n) {
     return 'Something went wrong on the server. Please try again later.';
   }
 

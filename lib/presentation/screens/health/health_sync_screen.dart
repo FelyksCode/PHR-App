@@ -7,7 +7,6 @@ import 'package:phr_app/providers/health_sync_providers.dart';
 
 import '../../../services/health_sync_service.dart';
 
-
 class HealthSyncScreen extends ConsumerStatefulWidget {
   const HealthSyncScreen({super.key});
 
@@ -18,12 +17,12 @@ class HealthSyncScreen extends ConsumerStatefulWidget {
 final periodicSyncEnabledProvider = StateProvider<bool>((ref) => false);
 
 class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      ref.read(healthSyncNotifierProvider.notifier).initializeBackgroundSync();
+      // WorkManager is initialized once in main.dart
+      // Just check if periodic sync is already enabled
       final syncNotifier = ref.read(healthSyncNotifierProvider.notifier);
       final isEnabled = await syncNotifier.isPeriodicSyncEnabled();
       ref.read(periodicSyncEnabledProvider.notifier).state = isEnabled;
@@ -65,7 +64,12 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
             ],
           ),
         ),
-        data: (syncEntity) => _buildSyncContent(context, syncEntity, supportedDataTypes, syncNotifier),
+        data: (syncEntity) => _buildSyncContent(
+          context,
+          syncEntity,
+          supportedDataTypes,
+          syncNotifier,
+        ),
       ),
     );
   }
@@ -83,17 +87,17 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
         children: [
           // Platform info card
           _buildPlatformInfoCard(context, syncNotifier),
-          
+
           const SizedBox(height: 16),
-          
+
           // Sync status card
           _buildSyncStatusCard(context, syncEntity),
-          
+
           const SizedBox(height: 16),
-          
+
           // Sync controls
           _buildSyncControlsCard(context, syncEntity, syncNotifier),
-          
+
           if (Platform.isAndroid) ...[
             const SizedBox(height: 16),
             _buildBackgroundSyncCard(context, syncNotifier),
@@ -103,10 +107,15 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     );
   }
 
-  Widget _buildPlatformInfoCard(BuildContext context, HealthSyncNotifier syncNotifier) {
-    final platform = Platform.isIOS ? 'iOS (HealthKit)' : 'Android (Health Connect)';
+  Widget _buildPlatformInfoCard(
+    BuildContext context,
+    HealthSyncNotifier syncNotifier,
+  ) {
+    final platform = Platform.isIOS
+        ? 'iOS (HealthKit)'
+        : 'Android (Health Connect)';
     final icon = Platform.isIOS ? Icons.phone_iphone : Icons.android;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -127,9 +136,9 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Health data sync supported',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.green,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.green),
                   ),
                 ],
               ),
@@ -144,7 +153,10 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     );
   }
 
-  Widget _buildSyncStatusCard(BuildContext context, HealthSyncEntity syncEntity) {
+  Widget _buildSyncStatusCard(
+    BuildContext context,
+    HealthSyncEntity syncEntity,
+  ) {
     final statusColor = _getStatusColor(syncEntity.status);
     final statusIcon = _getStatusIcon(syncEntity.status);
 
@@ -167,13 +179,25 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildStatusRow('Status', syncEntity.status.displayName, statusColor),
+            _buildStatusRow(
+              'Status',
+              syncEntity.status.displayName,
+              statusColor,
+            ),
             if (syncEntity.lastSyncTime != null) ...[
               const SizedBox(height: 8),
-              _buildStatusRow('Last Sync', _formatDateTime(syncEntity.lastSyncTime!), Colors.grey.shade600),
+              _buildStatusRow(
+                'Last Sync',
+                _formatDateTime(syncEntity.lastSyncTime!),
+                Colors.grey.shade600,
+              ),
             ],
             const SizedBox(height: 8),
-            _buildStatusRow('Total Synced', '${syncEntity.totalSyncedObservations} observations', Colors.grey.shade600),
+            _buildStatusRow(
+              'Total Synced',
+              '${syncEntity.totalSyncedObservations} observations',
+              Colors.grey.shade600,
+            ),
             if (syncEntity.errorMessage != null) ...[
               const SizedBox(height: 8),
               _buildStatusRow('Error', syncEntity.errorMessage!, Colors.red),
@@ -199,10 +223,7 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: TextStyle(color: valueColor),
-          ),
+          child: Text(value, style: TextStyle(color: valueColor)),
         ),
       ],
     );
@@ -213,8 +234,9 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     HealthSyncEntity syncEntity,
     HealthSyncNotifier syncNotifier,
   ) {
-    final canSync = syncEntity.permittedDataTypes.isNotEmpty && 
-                   syncEntity.status != SyncStatus.syncing;
+    final canSync =
+        syncEntity.permittedDataTypes.isNotEmpty &&
+        syncEntity.status != SyncStatus.syncing;
 
     return Card(
       child: Padding(
@@ -224,28 +246,31 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
           children: [
             Text(
               'Sync Controls',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: canSync
-                  ? () => _performSync(context, syncNotifier)
-                  : null,
+                    ? () => _performSync(context, syncNotifier)
+                    : null,
                 icon: syncEntity.status == SyncStatus.syncing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.sync),
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.sync),
                 label: Text(
                   syncEntity.status == SyncStatus.syncing
-                    ? 'Syncing...'
-                    : 'Sync Now',
+                      ? 'Syncing...'
+                      : 'Sync Now',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -258,8 +283,8 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: canSync
-                  ? () => _performDeltaSync(context, syncNotifier, syncEntity)
-                  : null,
+                    ? () => _performDeltaSync(context, syncNotifier, syncEntity)
+                    : null,
                 icon: const Icon(Icons.update),
                 label: const Text('Sync Recent Data'),
               ),
@@ -270,7 +295,10 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     );
   }
 
-  Widget _buildBackgroundSyncCard(BuildContext context, HealthSyncNotifier syncNotifier) {
+  Widget _buildBackgroundSyncCard(
+    BuildContext context,
+    HealthSyncNotifier syncNotifier,
+  ) {
     final isPeriodicSyncEnabled = ref.watch(periodicSyncEnabledProvider);
     return Card(
       child: Padding(
@@ -280,9 +308,9 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
           children: [
             Text(
               'Background Sync (Android)',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             SwitchListTile(
@@ -337,7 +365,9 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
                           const Icon(Icons.error, color: Colors.white),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text('Failed to ${value ? 'enable' : 'disable'} background sync: ${e.toString()}'),
+                            child: Text(
+                              'Failed to ${value ? 'enable' : 'disable'} background sync: ${e.toString()}',
+                            ),
                           ),
                         ],
                       ),
@@ -394,7 +424,10 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
   }
 
   // Action methods
-  Future<void> _performSync(BuildContext context, HealthSyncNotifier syncNotifier) async {
+  Future<void> _performSync(
+    BuildContext context,
+    HealthSyncNotifier syncNotifier,
+  ) async {
     try {
       final result = await syncNotifier.performSync();
 
@@ -403,17 +436,20 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sync error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Sync error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-  Future<void> _performDeltaSync(BuildContext context, HealthSyncNotifier syncNotifier, HealthSyncEntity syncEntity) async {
+  Future<void> _performDeltaSync(
+    BuildContext context,
+    HealthSyncNotifier syncNotifier,
+    HealthSyncEntity syncEntity,
+  ) async {
     try {
-      final since = syncEntity.lastSyncTime ?? DateTime.now().subtract(const Duration(days: 1));
+      final since =
+          syncEntity.lastSyncTime ??
+          DateTime.now().subtract(const Duration(days: 1));
       final result = await syncNotifier.performSync(since: since);
 
       if (!context.mounted) return;
@@ -432,7 +468,7 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
   void _showSyncResult(BuildContext context, SyncResult result) {
     Color backgroundColor;
     IconData icon;
-    
+
     if (result.isSuccess) {
       backgroundColor = Colors.green;
       icon = Icons.check_circle;
@@ -446,7 +482,7 @@ class _HealthSyncScreenState extends ConsumerState<HealthSyncScreen> {
       backgroundColor = Colors.red;
       icon = Icons.error;
     }
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(

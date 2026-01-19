@@ -8,10 +8,12 @@ class HeartRateMonitorScreen extends ConsumerStatefulWidget {
   const HeartRateMonitorScreen({super.key});
 
   @override
-  ConsumerState<HeartRateMonitorScreen> createState() => _HeartRateMonitorScreenState();
+  ConsumerState<HeartRateMonitorScreen> createState() =>
+      _HeartRateMonitorScreenState();
 }
 
-class _HeartRateMonitorScreenState extends ConsumerState<HeartRateMonitorScreen> {
+class _HeartRateMonitorScreenState
+    extends ConsumerState<HeartRateMonitorScreen> {
   final TextEditingController _heartRateController = TextEditingController();
 
   @override
@@ -73,10 +75,7 @@ class _HeartRateMonitorScreenState extends ConsumerState<HeartRateMonitorScreen>
           const SizedBox(height: 8),
           const Text(
             'Enter your heart rate measurement manually. Your readings will be saved to your health record.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.blue,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.blue),
           ),
         ],
       ),
@@ -121,7 +120,10 @@ class _HeartRateMonitorScreenState extends ConsumerState<HeartRateMonitorScreen>
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFE5E5EA)),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -165,7 +167,9 @@ class _HeartRateMonitorScreenState extends ConsumerState<HeartRateMonitorScreen>
         notes: 'Manual entry',
       );
 
-      await ref.read(observationSubmissionProvider.notifier).submitObservation(observation);
+      await ref
+          .read(observationSubmissionProvider.notifier)
+          .submitObservation(observation);
 
       if (mounted) {
         _heartRateController.clear();
@@ -181,8 +185,8 @@ class _HeartRateMonitorScreenState extends ConsumerState<HeartRateMonitorScreen>
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

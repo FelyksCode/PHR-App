@@ -1,7 +1,8 @@
 /// Integration Example: Error Handling in Auth Flow
-/// 
+///
 /// This example shows how to use the error handling system in a login flow.
 /// It demonstrates all key patterns: repository → state notifier → UI.
+library;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -132,17 +133,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _authRepository.login(email, password);
       state = state.copyWith(user: user, isLoading: false);
     } on LocalValidationError catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        validationError: e,
-        error: null,
-      );
+      state = state.copyWith(isLoading: false, validationError: e, error: null);
     } on AppError catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e,
-        validationError: null,
-      );
+      state = state.copyWith(isLoading: false, error: e, validationError: null);
     }
   }
 }
@@ -152,6 +145,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 // ============================================================================
 
 class LoginScreenExample extends ConsumerWidget {
+  const LoginScreenExample({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
@@ -195,8 +190,10 @@ class LoginScreenExample extends ConsumerWidget {
                 obscureText: true,
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  errorText:
-                      authState.validationError?.fieldErrors?['password']?.first,
+                  errorText: authState
+                      .validationError
+                      ?.fieldErrors?['password']
+                      ?.first,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -204,7 +201,9 @@ class LoginScreenExample extends ConsumerWidget {
 
               // Login button
               ElevatedButton(
-                onPressed: authState.isLoading ? null : () => _login(context, ref),
+                onPressed: authState.isLoading
+                    ? null
+                    : () => _login(context, ref),
                 child: authState.isLoading
                     ? const SizedBox(
                         height: 20,
@@ -235,7 +234,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(Dio());
 });
 
-final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
+  ref,
+) {
   final authRepository = ref.watch(authRepositoryProvider);
   return AuthNotifier(authRepository);
 });
@@ -249,21 +250,14 @@ class User {
   final String email;
   final String name;
 
-  User({
-    required this.id,
-    required this.email,
-    required this.name,
-  });
+  User({required this.id, required this.email, required this.name});
 }
 
 class LoginResponse {
   final User user;
   final String accessToken;
 
-  LoginResponse({
-    required this.user,
-    required this.accessToken,
-  });
+  LoginResponse({required this.user, required this.accessToken});
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(

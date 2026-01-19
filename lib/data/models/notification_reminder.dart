@@ -38,25 +38,25 @@ class NotificationReminder {
     List<String>? completedDates,
     this.isComplete = false,
     DateTime? createdAt,
-  })  : completedDates = completedDates ?? const [],
-        createdAt = createdAt ?? DateTime.now();
+  }) : completedDates = completedDates ?? const [],
+       createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'hour': time.hour,
-        'minute': time.minute,
-        'enabled': enabled,
-        // Recurrence fields
-        'interval': interval,
-        'weekDay': weekDay,
-        'monthDay': monthDay,
-        'completedDates': completedDates,
-        // Legacy
-        'isComplete': isComplete,
-      'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'title': title,
+    'description': description,
+    'hour': time.hour,
+    'minute': time.minute,
+    'enabled': enabled,
+    // Recurrence fields
+    'interval': interval,
+    'weekDay': weekDay,
+    'monthDay': monthDay,
+    'completedDates': completedDates,
+    // Legacy
+    'isComplete': isComplete,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory NotificationReminder.fromJson(Map<String, dynamic> json) {
     // Fallback for older saved reminders where interval fields are absent.
@@ -70,7 +70,9 @@ class NotificationReminder {
       final parts = desc.split(' - ');
       if (parts.length >= 2) {
         final maybeInterval = parts[1];
-        if (maybeInterval == 'Daily' || maybeInterval == 'Weekly' || maybeInterval == 'Monthly') {
+        if (maybeInterval == 'Daily' ||
+            maybeInterval == 'Weekly' ||
+            maybeInterval == 'Monthly') {
           if (maybeInterval == 'Weekly' && parts.length >= 3) {
             final dayName = parts[2];
             const mapping = {
@@ -90,9 +92,8 @@ class NotificationReminder {
       }
     }
 
-    final List<String> completedDates = (json['completedDates'] as List?)
-            ?.whereType<String>()
-            .toList() ??
+    final List<String> completedDates =
+        (json['completedDates'] as List?)?.whereType<String>().toList() ??
         const [];
 
     return NotificationReminder(
@@ -101,12 +102,18 @@ class NotificationReminder {
       description: json['description'] as String? ?? '',
       time: TimeOfDay(hour: json['hour'] as int, minute: json['minute'] as int),
       enabled: json['enabled'] as bool? ?? true,
-      interval: interval ?? (weekDay != null || monthDay != null ? (weekDay != null ? 'Weekly' : 'Monthly') : 'Daily'),
+      interval:
+          interval ??
+          (weekDay != null || monthDay != null
+              ? (weekDay != null ? 'Weekly' : 'Monthly')
+              : 'Daily'),
       weekDay: weekDay,
       monthDay: monthDay,
       completedDates: completedDates,
       isComplete: json['isComplete'] as bool? ?? false,
-      createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse((json['createdAt'] as String?) ?? '') ??
+          DateTime.now(),
     );
   }
 

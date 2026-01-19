@@ -37,11 +37,7 @@ class FhirCoding {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'system': system,
-      'code': code,
-      'display': display,
-    };
+    return {'system': system, 'code': code, 'display': display};
   }
 }
 

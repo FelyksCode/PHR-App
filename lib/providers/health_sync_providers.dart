@@ -25,12 +25,12 @@ final healthSyncServiceProvider = Provider<HealthSyncService>((ref) {
 class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
   final HealthSyncRepository _repository;
   final HealthSyncService _service;
-  
-  HealthSyncNotifier(this._repository, this._service) 
+
+  HealthSyncNotifier(this._repository, this._service)
     : super(const AsyncValue.loading()) {
     _loadSyncStatus();
   }
-  
+
   Future<void> _loadSyncStatus() async {
     try {
       final status = await _repository.getSyncStatus();
@@ -39,7 +39,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       state = AsyncValue.error(e, stack);
     }
   }
-  
+
   /// Request permissions for health data access
   Future<bool> requestPermissions(List<HealthDataType> dataTypes) async {
     try {
@@ -65,7 +65,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       return false;
     }
   }
-  
+
   /// Perform manual sync
   Future<SyncResult> performSync({
     List<HealthDataType>? dataTypes,
@@ -73,18 +73,20 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
   }) async {
     // Update state to show syncing status
     state.whenData((currentStatus) {
-      state = AsyncValue.data(currentStatus.copyWith(status: SyncStatus.syncing));
+      state = AsyncValue.data(
+        currentStatus.copyWith(status: SyncStatus.syncing),
+      );
     });
-    
+
     try {
       final result = await _service.performSync(
         specificDataTypes: dataTypes,
         since: since,
       );
-      
+
       // Reload status to reflect sync results
       await _loadSyncStatus();
-      
+
       return result;
     } catch (e) {
       // Reload status to reflect error state
@@ -92,29 +94,11 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       rethrow;
     }
   }
-  
-  /// Initialize background sync (Android only)
-  Future<void> initializeBackgroundSync() async {
-    try {
-      await _service.initializeBackgroundSync();
-    } catch (e) {
-      final appError = e is AppError
-          ? e
-          : UnknownError(
-              'Error initializing background sync',
-              code: 'HEALTH_SYNC_INIT_BG_ERROR',
-              originalException: e,
-            );
-      AppErrorLogger.logError(
-        appError,
-        source: 'HealthSyncNotifier.initializeBackgroundSync',
-        severity: ErrorSeverity.medium,
-      );
-    }
-  }
-  
+
   /// Schedule periodic sync
-  Future<void> schedulePeriodicSync({Duration interval = const Duration(hours: 1)}) async {
+  Future<void> schedulePeriodicSync({
+    Duration interval = const Duration(hours: 1),
+  }) async {
     try {
       await _service.schedulePeriodicSync(interval: interval);
     } catch (e) {
@@ -132,7 +116,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       );
     }
   }
-  
+
   /// Cancel periodic sync
   Future<void> cancelPeriodicSync() async {
     try {
@@ -152,7 +136,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       );
     }
   }
-  
+
   /// Check if periodic sync is currently enabled
   Future<bool> isPeriodicSyncEnabled() async {
     try {
@@ -173,38 +157,43 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSyncEntity>> {
       return false;
     }
   }
-  
+
   /// Refresh sync status
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     await _loadSyncStatus();
   }
-  
+
   /// Check if health sync is supported
   bool get isSupported => _service.isSupported;
-  
+
   /// Get platform data source
   DataSource get platformDataSource => _service.platformDataSource;
 }
 
 // Provider for HealthSyncNotifier
-final healthSyncNotifierProvider = 
-  StateNotifierProvider<HealthSyncNotifier, AsyncValue<HealthSyncEntity>>((ref) {
-  final repository = ref.read(healthSyncRepositoryProvider);
-  final service = ref.read(healthSyncServiceProvider);
-  return HealthSyncNotifier(repository, service);
-});
+final healthSyncNotifierProvider =
+    StateNotifierProvider<HealthSyncNotifier, AsyncValue<HealthSyncEntity>>((
+      ref,
+    ) {
+      final repository = ref.read(healthSyncRepositoryProvider);
+      final service = ref.read(healthSyncServiceProvider);
+      return HealthSyncNotifier(repository, service);
+    });
 
 // Convenience provider for getting sync status
 final syncStatusProvider = Provider<AsyncValue<SyncStatus>>((ref) {
-  return ref.watch(healthSyncNotifierProvider).whenData((entity) => entity.status);
+  return ref
+      .watch(healthSyncNotifierProvider)
+      .whenData((entity) => entity.status);
 });
 
 // Provider for checking if permissions are granted
-final hasHealthPermissionsProvider = FutureProvider.family<bool, List<HealthDataType>>((ref, dataTypes) async {
-  final repository = ref.read(healthSyncRepositoryProvider);
-  return await repository.hasPermissions(dataTypes);
-});
+final hasHealthPermissionsProvider =
+    FutureProvider.family<bool, List<HealthDataType>>((ref, dataTypes) async {
+      final repository = ref.read(healthSyncRepositoryProvider);
+      return await repository.hasPermissions(dataTypes);
+    });
 
 // Provider for supported health data types
 final supportedHealthDataTypesProvider = Provider<List<HealthDataType>>((ref) {

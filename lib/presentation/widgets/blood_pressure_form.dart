@@ -35,8 +35,10 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
     if (_formKey.currentState?.validate() ?? false) {
       final systolic = double.parse(_systolicController.text);
       final diastolic = double.parse(_diastolicController.text);
-      final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
-      
+      final notes = _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim();
+
       widget.onSubmit(systolic, diastolic, notes);
     }
   }
@@ -45,12 +47,12 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
     if (value == null || value.isEmpty) {
       return 'Please enter $type value';
     }
-    
+
     final numValue = double.tryParse(value);
     if (numValue == null) {
       return 'Please enter a valid number';
     }
-    
+
     if (type == 'systolic') {
       if (numValue < 70 || numValue > 250) {
         return 'Systolic should be 70-250 mm[Hg]';
@@ -60,7 +62,7 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
         return 'Diastolic should be 40-150 mm[Hg]';
       }
     }
-    
+
     return null;
   }
 
@@ -85,10 +87,7 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
               // Header
               Row(
                 children: [
-                  const Text(
-                    '🩸',
-                    style: TextStyle(fontSize: 32),
-                  ),
+                  const Text('🩸', style: TextStyle(fontSize: 32)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -114,7 +113,7 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Systolic and Diastolic in one row
               Row(
                 children: [
@@ -122,9 +121,13 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                   Expanded(
                     child: TextFormField(
                       controller: _systolicController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d*'),
+                        ),
                       ],
                       decoration: InputDecoration(
                         labelText: 'Systolic',
@@ -133,7 +136,8 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                         filled: true,
                         fillColor: Colors.grey[50],
                       ),
-                      validator: (value) => _validateBloodPressure(value, 'systolic'),
+                      validator: (value) =>
+                          _validateBloodPressure(value, 'systolic'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -150,9 +154,13 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                   Expanded(
                     child: TextFormField(
                       controller: _diastolicController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d*'),
+                        ),
                       ],
                       decoration: InputDecoration(
                         labelText: 'Diastolic',
@@ -161,13 +169,14 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                         filled: true,
                         fillColor: Colors.grey[50],
                       ),
-                      validator: (value) => _validateBloodPressure(value, 'diastolic'),
+                      validator: (value) =>
+                          _validateBloodPressure(value, 'diastolic'),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Clinical reference hint
               Container(
                 padding: const EdgeInsets.all(12),
@@ -183,17 +192,14 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                     Expanded(
                       child: Text(
                         'Normal: <120/80 mm[Hg]',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[900],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.blue[900]),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Notes input
               TextFormField(
                 controller: _notesController,
@@ -205,7 +211,7 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Submit button
               SizedBox(
                 width: double.infinity,
@@ -225,7 +231,9 @@ class _BloodPressureFormState extends State<BloodPressureForm> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(

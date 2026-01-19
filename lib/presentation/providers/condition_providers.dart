@@ -18,30 +18,46 @@ final getConditionsUseCaseProvider = Provider<GetConditionsUseCase>((ref) {
 });
 
 // State providers
-final conditionsProvider = StateNotifierProvider<ConditionsNotifier, AsyncValue<List<ConditionEntity>>>((ref) {
-  final getConditionsUseCase = ref.watch(getConditionsUseCaseProvider);
-  return ConditionsNotifier(getConditionsUseCase);
-});
+final conditionsProvider =
+    StateNotifierProvider<
+      ConditionsNotifier,
+      AsyncValue<List<ConditionEntity>>
+    >((ref) {
+      final getConditionsUseCase = ref.watch(getConditionsUseCaseProvider);
+      return ConditionsNotifier(getConditionsUseCase);
+    });
 
-final conditionSubmissionProvider = StateNotifierProvider<ConditionSubmissionNotifier, AsyncValue<bool?>>((ref) {
-  final submitConditionUseCase = ref.watch(submitConditionUseCaseProvider);
-  final conditionsNotifier = ref.watch(conditionsProvider.notifier);
-  return ConditionSubmissionNotifier(submitConditionUseCase, conditionsNotifier);
-});
+final conditionSubmissionProvider =
+    StateNotifierProvider<ConditionSubmissionNotifier, AsyncValue<bool?>>((
+      ref,
+    ) {
+      final submitConditionUseCase = ref.watch(submitConditionUseCaseProvider);
+      final conditionsNotifier = ref.watch(conditionsProvider.notifier);
+      return ConditionSubmissionNotifier(
+        submitConditionUseCase,
+        conditionsNotifier,
+      );
+    });
 
 // Latest conditions from FHIR API provider
-final latestConditionsProvider = StateNotifierProvider<LatestConditionsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final apiService = ref.watch(apiServiceProvider);
-  final cache = ref.watch(localCacheServiceProvider);
-  return LatestConditionsNotifier(ref, apiService, cache);
-});
+final latestConditionsProvider =
+    StateNotifierProvider<
+      LatestConditionsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      final apiService = ref.watch(apiServiceProvider);
+      final cache = ref.watch(localCacheServiceProvider);
+      return LatestConditionsNotifier(ref, apiService, cache);
+    });
 
-class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+class LatestConditionsNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final Ref _ref;
   final dynamic _apiService; // ApiService type
   final dynamic _cache; // LocalCacheService
 
-  LatestConditionsNotifier(this._ref, this._apiService, this._cache) : super(const AsyncValue.loading()) {
+  LatestConditionsNotifier(this._ref, this._apiService, this._cache)
+    : super(const AsyncValue.loading()) {
     _loadWithCache();
   }
 
@@ -49,11 +65,15 @@ class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String,
     try {
       // Load cached data first for instant display (especially offline)
       final cached = await _cache.getCachedConditions();
+      if (!mounted) return;
+
       if (cached.isNotEmpty) {
         state = AsyncValue.data(cached);
       }
 
       final online = await _apiService.isOnline();
+      if (!mounted) return;
+
       _ref.read(connectivityProvider.notifier).state = online;
       if (!online) {
         _ref.read(offlineModeProvider.notifier).state = true;
@@ -65,6 +85,7 @@ class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String,
       // Then try to fetch fresh data
       await loadLatestConditions();
     } catch (e, stack) {
+      if (!mounted) return;
       state = AsyncValue.error(e, stack);
     }
   }
@@ -73,26 +94,32 @@ class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String,
     if (_isOffline()) {
       // Offline mode: skip fetching conditions, use cache.
       final cached = await _cache.getCachedConditions();
+      if (!mounted) return;
       state = AsyncValue.data(cached);
       return;
     }
 
     try {
       final conditions = await _apiService.getLatestConditions(count: 10);
+      if (!mounted) return;
+
       await _cache.cacheConditions(conditions);
+      if (!mounted) return;
+
       state = AsyncValue.data(conditions);
     } catch (error, stackTrace) {
       // Keep cached data if fetch fails and we already have it
       final currentData = state.value;
       if (currentData == null || currentData.isEmpty) {
         final cached = await _cache.getCachedConditions();
+        if (!mounted) return;
+
         if (cached.isNotEmpty) {
           state = AsyncValue.data(cached);
         } else {
           state = AsyncValue.error(error, stackTrace);
         }
-      } else {
-      }
+      } else {}
       // If we already have data showing, silently fail to keep current state
     }
   }
@@ -106,10 +133,12 @@ class LatestConditionsNotifier extends StateNotifier<AsyncValue<List<Map<String,
   }
 }
 
-class ConditionsNotifier extends StateNotifier<AsyncValue<List<ConditionEntity>>> {
+class ConditionsNotifier
+    extends StateNotifier<AsyncValue<List<ConditionEntity>>> {
   final GetConditionsUseCase _getConditionsUseCase;
 
-  ConditionsNotifier(this._getConditionsUseCase) : super(const AsyncValue.loading()) {
+  ConditionsNotifier(this._getConditionsUseCase)
+    : super(const AsyncValue.loading()) {
     loadConditions();
   }
 
@@ -133,15 +162,17 @@ class ConditionSubmissionNotifier extends StateNotifier<AsyncValue<bool?>> {
   final SubmitConditionUseCase _submitConditionUseCase;
   final ConditionsNotifier _conditionsNotifier;
 
-  ConditionSubmissionNotifier(this._submitConditionUseCase, this._conditionsNotifier) 
-      : super(const AsyncValue.data(null));
+  ConditionSubmissionNotifier(
+    this._submitConditionUseCase,
+    this._conditionsNotifier,
+  ) : super(const AsyncValue.data(null));
 
   Future<void> submitCondition(ConditionEntity condition) async {
     try {
       state = const AsyncValue.loading();
       final success = await _submitConditionUseCase.execute(condition);
       state = AsyncValue.data(success);
-      
+
       if (success) {
         _conditionsNotifier.addCondition(condition);
       }

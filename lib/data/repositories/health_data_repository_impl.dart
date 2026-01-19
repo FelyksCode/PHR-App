@@ -17,11 +17,11 @@ class HealthDataRepositoryImpl implements HealthDataRepository {
     try {
       final observationModel = ObservationModel.fromEntity(observation);
       final success = await _apiService.submitObservation(observationModel);
-      
+
       if (success) {
         _observationsCache.add(observation);
       }
-      
+
       return success;
     } catch (e) {
       return false;
@@ -33,11 +33,11 @@ class HealthDataRepositoryImpl implements HealthDataRepository {
     try {
       final conditionModel = ConditionModel.fromEntity(condition);
       final success = await _apiService.submitCondition(conditionModel);
-      
+
       if (success) {
         _conditionsCache.add(condition);
       }
-      
+
       return success;
     } catch (e) {
       return false;

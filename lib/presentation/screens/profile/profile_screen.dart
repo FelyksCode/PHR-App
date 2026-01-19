@@ -43,7 +43,9 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundColor: const Color(0xFF007AFF).withValues(alpha:0.1),
+                    backgroundColor: const Color(
+                      0xFF007AFF,
+                    ).withValues(alpha: 0.1),
                     child: Text(
                       (user?.name ?? 'U').isNotEmpty
                           ? (user?.name ?? 'U')[0].toUpperCase()
@@ -107,7 +109,10 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   _InfoRow(label: 'Email', value: user?.email ?? '-'),
                   const SizedBox(height: 8),
-                  _InfoRow(label: 'Patient ID', value: user?.fhirPatientId ?? '-'),
+                  _InfoRow(
+                    label: 'Patient ID',
+                    value: user?.fhirPatientId ?? '-',
+                  ),
                 ],
               ),
             ),

@@ -4,9 +4,7 @@ import '../../data/models/auth_models.dart';
 
 class SecureStorageService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -38,7 +36,7 @@ class SecureStorageService {
   static Future<User?> getUser() async {
     final userJson = await _storage.read(key: _userKey);
     if (userJson == null) return null;
-    
+
     try {
       final userMap = jsonDecode(userJson) as Map<String, dynamic>;
       return User.fromJson(userMap);
@@ -55,10 +53,7 @@ class SecureStorageService {
 
   // Clear all auth data
   static Future<void> clearAll() async {
-    await Future.wait([
-      deleteAccessToken(),
-      deleteUser(),
-    ]);
+    await Future.wait([deleteAccessToken(), deleteUser()]);
   }
 
   // Check if user is logged in
@@ -72,15 +67,11 @@ class SecureStorageService {
   static Future<AuthState> getStoredAuthState() async {
     final token = await getAccessToken();
     final user = await getUser();
-    
+
     if (token != null && user != null) {
-      return AuthState(
-        accessToken: token,
-        user: user,
-        isAuthenticated: true,
-      );
+      return AuthState(accessToken: token, user: user, isAuthenticated: true);
     }
-    
+
     return AuthState.initial;
   }
 }

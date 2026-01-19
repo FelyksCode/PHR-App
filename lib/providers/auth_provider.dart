@@ -19,28 +19,31 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   final Ref _ref;
-  
+
   AuthNotifier(this._authRepository, this._ref) : super(AuthState.initial) {
     _checkAuthStatus();
   }
-  
+
   // Check if user is already authenticated on app start
   Future<void> _checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
 
-    final isOffline = !_ref.read(connectivityProvider) || _ref.read(offlineModeProvider);
+    final isOffline =
+        !_ref.read(connectivityProvider) || _ref.read(offlineModeProvider);
     try {
-      final authState = await _authRepository.autoLogin(skipNetworkValidation: isOffline);
+      final authState = await _authRepository.autoLogin(
+        skipNetworkValidation: isOffline,
+      );
       state = authState;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
-  
+
   // Login method
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final authState = await _authRepository.login(email, password);
       state = authState;
@@ -58,29 +61,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
-  
+
   // Logout method
   Future<void> logout() async {
     await _authRepository.logout();
     state = AuthState.initial;
   }
-  
+
   // Clear error
   void clearError() {
     state = state.clearError();
   }
-  
+
   // Refresh user data
   Future<void> refreshUser() async {
     if (!state.isAuthenticated) return;
-    if (_ref.read(offlineModeProvider)) return; // skip network refresh when offline
-    
+    if (_ref.read(offlineModeProvider)) {
+      return; // skip network refresh when offline
+    }
+
     try {
       final user = await _authRepository.getCurrentUser();
       state = state.copyWith(user: user);
     } on AuthException catch (e) {
       // If refresh fails, likely token expired
-      if (e.message.contains('Token expired') || e.message.contains('invalid')) {
+      if (e.message.contains('Token expired') ||
+          e.message.contains('invalid')) {
         await logout();
       }
     }
@@ -101,9 +107,9 @@ final obscurePasswordProvider = StateProvider<bool>((ref) => true);
 final isLoginFormValidProvider = Provider<bool>((ref) {
   final email = ref.watch(emailProvider);
   final password = ref.watch(passwordProvider);
-  
-  return email.isNotEmpty && 
-         password.isNotEmpty && 
-         email.contains('@') && 
-         password.length >= 6;
+
+  return email.isNotEmpty &&
+      password.isNotEmpty &&
+      email.contains('@') &&
+      password.length >= 6;
 });

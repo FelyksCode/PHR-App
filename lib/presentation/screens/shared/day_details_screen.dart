@@ -78,12 +78,18 @@ class DayDetailsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Vital Signs', Icons.favorite, const Color(0xFFFF3B30)),
+            _buildSectionHeader(
+              'Vital Signs',
+              Icons.favorite,
+              const Color(0xFFFF3B30),
+            ),
             const SizedBox(height: 12),
             observationsState.when(
               data: (obs) {
                 final dayObs = obs.where((o) {
-                  final dateStr = o['effectiveDateTime'] as String? ?? o['issued'] as String?;
+                  final dateStr =
+                      o['effectiveDateTime'] as String? ??
+                      o['issued'] as String?;
                   if (dateStr == null) return false;
                   final parsed = DateTime.tryParse(dateStr);
                   if (parsed == null) return false;
@@ -91,21 +97,36 @@ class DayDetailsScreen extends ConsumerWidget {
                 }).toList();
 
                 if (dayObs.isEmpty) {
-                  return _buildEmptyState('No vital signs recorded for this day');
+                  return _buildEmptyState(
+                    'No vital signs recorded for this day',
+                  );
                 }
 
                 return _buildObservationList(dayObs);
               },
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
-              error: (_, __) => _buildEmptyState('Unable to load vital signs for this day'),
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (_, __) =>
+                  _buildEmptyState('Unable to load vital signs for this day'),
             ),
             const SizedBox(height: 24),
-            _buildSectionHeader('Conditions', Icons.report_problem, const Color(0xFFFF9500)),
+            _buildSectionHeader(
+              'Conditions',
+              Icons.report_problem,
+              const Color(0xFFFF9500),
+            ),
             const SizedBox(height: 12),
             conditionsState.when(
               data: (conds) {
                 final dayConds = conds.where((c) {
-                  final dateStr = c['recordedDate'] as String? ?? c['onsetDateTime'] as String? ?? c['timestamp'] as String?;
+                  final dateStr =
+                      c['recordedDate'] as String? ??
+                      c['onsetDateTime'] as String? ??
+                      c['timestamp'] as String?;
                   if (dateStr == null) return false;
                   final parsed = DateTime.tryParse(dateStr);
                   if (parsed == null) return false;
@@ -113,16 +134,28 @@ class DayDetailsScreen extends ConsumerWidget {
                 }).toList();
 
                 if (dayConds.isEmpty) {
-                  return _buildEmptyState('No conditions reported for this day');
+                  return _buildEmptyState(
+                    'No conditions reported for this day',
+                  );
                 }
 
                 return _buildConditionList(dayConds);
               },
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
-              error: (_, __) => _buildEmptyState('Unable to load conditions for this day'),
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (_, __) =>
+                  _buildEmptyState('Unable to load conditions for this day'),
             ),
             const SizedBox(height: 24),
-            _buildSectionHeader('Reminders', Icons.notifications, const Color(0xFF007AFF)),
+            _buildSectionHeader(
+              'Reminders',
+              Icons.notifications,
+              const Color(0xFF007AFF),
+            ),
             const SizedBox(height: 12),
             _buildCompletedRemindersSection(history),
             const SizedBox(height: 12),
@@ -139,7 +172,7 @@ class DayDetailsScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha:0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -169,10 +202,7 @@ class DayDetailsScreen extends ConsumerWidget {
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF8E8E93),
-          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
         ),
       ),
     );
@@ -186,12 +216,16 @@ class DayDetailsScreen extends ConsumerWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final obs = observations[index];
-        final dateStr = obs['effectiveDateTime'] as String? ?? obs['issued'] as String?;
+        final dateStr =
+            obs['effectiveDateTime'] as String? ?? obs['issued'] as String?;
         final date = DateTime.tryParse(dateStr ?? '')?.toLocal();
-        final timeLabel = date != null ? DateFormat('hh:mm a').format(date) : '--';
+        final timeLabel = date != null
+            ? DateFormat('hh:mm a').format(date)
+            : '--';
         final rawType = obs['type'] as String? ?? 'Observation';
         final typeLower = rawType.toLowerCase();
-        final isBpPanel = typeLower.contains('blood pressure') ||
+        final isBpPanel =
+            typeLower.contains('blood pressure') ||
             (obs['loincCode'] == '35094-2') ||
             (obs['component'] is List && (obs['component'] as List).isNotEmpty);
 
@@ -214,7 +248,8 @@ class DayDetailsScreen extends ConsumerWidget {
           final components = obs['component'] as List<dynamic>?;
           if (components != null && components.isNotEmpty) {
             for (final component in components) {
-              final compCode = component['code']?['coding']?[0]?['code'] as String?;
+              final compCode =
+                  component['code']?['coding']?[0]?['code'] as String?;
               final vq = component['valueQuantity'] as Map<String, dynamic>?;
               final val = vq?['value'];
               if (compCode == '8480-6') {
@@ -258,13 +293,19 @@ class DayDetailsScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Text(
                       timeLabel,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
                     if (notes != null && notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
                         notes,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF8E8E93),
+                        ),
                       ),
                     ],
                   ],
@@ -285,7 +326,10 @@ class DayDetailsScreen extends ConsumerWidget {
                     ),
                     Text(
                       unit,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
                   ] else ...[
                     Text(
@@ -299,7 +343,10 @@ class DayDetailsScreen extends ConsumerWidget {
                     if ((unit).isNotEmpty)
                       Text(
                         unit,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8E8E93),
+                        ),
                       ),
                   ],
                 ],
@@ -319,11 +366,19 @@ class DayDetailsScreen extends ConsumerWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final cond = conditions[index];
-        final name = cond['condition'] as String? ?? cond['conditionCode'] as String? ?? 'Condition';
+        final name =
+            cond['condition'] as String? ??
+            cond['conditionCode'] as String? ??
+            'Condition';
         final severity = cond['severity'] as String? ?? 'Unspecified';
-        final dateStr = cond['recordedDate'] as String? ?? cond['onsetDateTime'] as String? ?? cond['timestamp'] as String?;
+        final dateStr =
+            cond['recordedDate'] as String? ??
+            cond['onsetDateTime'] as String? ??
+            cond['timestamp'] as String?;
         final date = DateTime.tryParse(dateStr ?? '')?.toLocal();
-        final timeLabel = date != null ? DateFormat('hh:mm a').format(date) : '--';
+        final timeLabel = date != null
+            ? DateFormat('hh:mm a').format(date)
+            : '--';
         final notes = cond['notes'] as String?;
 
         return Container(
@@ -351,7 +406,10 @@ class DayDetailsScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Text(
                     severity,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF8E8E93),
+                    ),
                   ),
                 ],
               ),
@@ -364,7 +422,10 @@ class DayDetailsScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   notes,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF8E8E93),
+                  ),
                 ),
               ],
             ],
@@ -375,14 +436,26 @@ class DayDetailsScreen extends ConsumerWidget {
   }
 
   Widget _buildUpcomingRemindersSection(List<NotificationReminder> reminders) {
-    final dueReminders = reminders.where((r) =>
-      r.enabled &&
-      r.isDueOn(selectedDate) &&
-      !r.isCompletedOn(selectedDate) &&
-      (DateTime(selectedDate.year, selectedDate.month, selectedDate.day)
-          .isAfter(DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day)) ||
-       _isSameDay(selectedDate, r.createdAt))
-    ).toList();
+    final dueReminders = reminders
+        .where(
+          (r) =>
+              r.enabled &&
+              r.isDueOn(selectedDate) &&
+              !r.isCompletedOn(selectedDate) &&
+              (DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                  ).isAfter(
+                    DateTime(
+                      r.createdAt.year,
+                      r.createdAt.month,
+                      r.createdAt.day,
+                    ),
+                  ) ||
+                  _isSameDay(selectedDate, r.createdAt)),
+        )
+        .toList();
     if (dueReminders.isEmpty) {
       return _buildEmptyState('No upcoming reminders for this day');
     }
@@ -417,13 +490,19 @@ class DayDetailsScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Text(
                       'At ${r.time.format(context)}${r.interval != null ? ' · ${r.interval}' : ''}',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF2F2F7),
                   borderRadius: BorderRadius.circular(20),
@@ -444,7 +523,8 @@ class DayDetailsScreen extends ConsumerWidget {
   }
 
   Widget _buildCompletedRemindersSection(List<ReminderHistoryRecord> history) {
-    final key = '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+    final key =
+        '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
     final records = history.where((h) => h.dateKey == key).toList();
     if (records.isEmpty) {
       return _buildEmptyState('No completed reminders for this day');
@@ -480,13 +560,19 @@ class DayDetailsScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Completed at ${r.time.format(context)}',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE7F8EF),
                   borderRadius: BorderRadius.circular(20),

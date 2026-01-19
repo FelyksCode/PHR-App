@@ -5,8 +5,11 @@ import 'package:phr_app/data/models/reminder_history_record.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:phr_app/presentation/providers/dashboard_calendar_provider.dart';
-import 'package:phr_app/presentation/providers/fitbit_vendor_provider.dart';
 import 'package:phr_app/providers/auth_provider.dart';
+import 'package:phr_app/providers/data_source_providers.dart';
+import 'package:phr_app/domain/entities/data_source_config.dart';
+import 'package:phr_app/providers/vendor_integration_provider.dart';
+import 'package:phr_app/providers/vendor_last_sync_provider.dart';
 import '../../providers/observation_providers.dart';
 import '../../providers/condition_providers.dart';
 import '../../providers/health_status_provider.dart';
@@ -31,10 +34,14 @@ class DashboardScreen extends ConsumerWidget {
     final latestConditionsState = ref.watch(latestConditionsProvider);
     final healthStatusState = ref.watch(healthStatusProvider);
     final authState = ref.watch(authProvider);
-    final fitbitState = ref.watch(fitbitVendorProvider);
-    final fitbitNotifier = ref.read(fitbitVendorProvider.notifier);
+    final fitbitState = ref.watch(vendorIntegrationProvider('fitbit'));
+    final fitbitNotifier = ref.read(
+      vendorIntegrationProvider('fitbit').notifier,
+    );
+    final vendorLastSync = ref.watch(vendorLastSyncProvider);
     final calendarState = ref.watch(dashboardCalendarProvider);
     final calendarNotifier = ref.read(dashboardCalendarProvider.notifier);
+    final dataSourceConfigState = ref.watch(dataSourceConfigProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -69,15 +76,10 @@ class DashboardScreen extends ConsumerWidget {
           IconButton(
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
-            icon: const Icon(
-              Icons.settings,
-              color: Color(0xFF8E8E93),
-            ),
+            icon: const Icon(Icons.settings, color: Color(0xFF8E8E93)),
             tooltip: l10n.settings,
           ),
         ],
@@ -101,9 +103,31 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _buildReminderCard(context, ref, l10n),
               const SizedBox(height: 20),
-              _buildFitbitStatusCard(context, fitbitState, fitbitNotifier),
+              // Vendor integration card - aware of selected data source
+              dataSourceConfigState.when(
+                data: (config) => _buildFitbitStatusCard(
+                  context,
+                  fitbitState,
+                  fitbitNotifier,
+                  config,
+                  vendorLastSync,
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => _buildFitbitStatusCard(
+                  context,
+                  fitbitState,
+                  fitbitNotifier,
+                  DataSourceConfig.defaultConfig,
+                  vendorLastSync,
+                ),
+              ),
               const SizedBox(height: 20),
-              _buildHealthStatistics(context, l10n, latestObservationsState, latestConditionsState),
+              _buildHealthStatistics(
+                context,
+                l10n,
+                latestObservationsState,
+                latestConditionsState,
+              ),
             ],
           ),
         ),
@@ -141,8 +165,10 @@ class DashboardScreen extends ConsumerWidget {
                       color: const Color(0xFF007AFF),
                     ),
                     Text(
-                      calendarState.isMonthView 
-                          ? DateFormat('MMMM yyyy').format(calendarState.focusedDate)
+                      calendarState.isMonthView
+                          ? DateFormat(
+                              'MMMM yyyy',
+                            ).format(calendarState.focusedDate)
                           : 'Week of ${DateFormat('MMM dd').format(calendarState.focusedDate.subtract(Duration(days: calendarState.focusedDate.weekday - 1)))}',
                       style: const TextStyle(
                         fontSize: 18,
@@ -164,11 +190,15 @@ class DashboardScreen extends ConsumerWidget {
                     calendarNotifier.toggleViewMode();
                   },
                   icon: Icon(
-                    calendarState.isMonthView ? Icons.calendar_view_week : Icons.calendar_month,
+                    calendarState.isMonthView
+                        ? Icons.calendar_view_week
+                        : Icons.calendar_month,
                     size: 24,
                   ),
                   color: const Color(0xFF007AFF),
-                  tooltip: calendarState.isMonthView ? 'Week View' : 'Month View',
+                  tooltip: calendarState.isMonthView
+                      ? 'Week View'
+                      : 'Month View',
                 ),
               ],
             ),
@@ -176,8 +206,8 @@ class DashboardScreen extends ConsumerWidget {
           // Calendar grid
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: calendarState.isMonthView 
-                ? _buildMonthCalendar(ref, calendarState, calendarNotifier) 
+            child: calendarState.isMonthView
+                ? _buildMonthCalendar(ref, calendarState, calendarNotifier)
                 : _buildWeekCalendar(ref, calendarState, calendarNotifier),
           ),
           const SizedBox(height: 16),
@@ -192,8 +222,13 @@ class DashboardScreen extends ConsumerWidget {
     DashboardCalendarNotifier calendarNotifier,
   ) {
     final today = DateTime.now();
-    final startOfWeek = calendarState.focusedDate.subtract(Duration(days: calendarState.focusedDate.weekday - 1));
-    final weekDays = List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+    final startOfWeek = calendarState.focusedDate.subtract(
+      Duration(days: calendarState.focusedDate.weekday - 1),
+    );
+    final weekDays = List.generate(
+      7,
+      (index) => startOfWeek.add(Duration(days: index)),
+    );
 
     return Column(
       children: [
@@ -201,18 +236,20 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-              .map((day) => Expanded(
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8E8E93),
-                        ),
+              .map(
+                (day) => Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF8E8E93),
                       ),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 12),
@@ -220,10 +257,12 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: weekDays.map((date) {
-            final isSelected = date.day == calendarState.selectedDate.day &&
+            final isSelected =
+                date.day == calendarState.selectedDate.day &&
                 date.month == calendarState.selectedDate.month &&
                 date.year == calendarState.selectedDate.year;
-            final isToday = date.day == today.day &&
+            final isToday =
+                date.day == today.day &&
                 date.month == today.month &&
                 date.year == today.year;
 
@@ -233,7 +272,8 @@ class DashboardScreen extends ConsumerWidget {
                   calendarNotifier.selectDate(date);
                   Navigator.of(ref.context).push(
                     MaterialPageRoute(
-                      builder: (context) => DayDetailsScreen(selectedDate: date),
+                      builder: (context) =>
+                          DayDetailsScreen(selectedDate: date),
                     ),
                   );
                 },
@@ -244,8 +284,8 @@ class DashboardScreen extends ConsumerWidget {
                     color: isSelected
                         ? const Color(0xFF007AFF)
                         : isToday
-                            ? const Color(0xFF007AFF).withValues(alpha:0.1)
-                            : Colors.transparent,
+                        ? const Color(0xFF007AFF).withValues(alpha: 0.1)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -253,12 +293,14 @@ class DashboardScreen extends ConsumerWidget {
                       '${date.day}',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: isSelected || isToday ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: isSelected || isToday
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                         color: isSelected
                             ? Colors.white
                             : isToday
-                                ? const Color(0xFF007AFF)
-                                : const Color(0xFF1C1C1E),
+                            ? const Color(0xFF007AFF)
+                            : const Color(0xFF1C1C1E),
                       ),
                     ),
                   ),
@@ -277,8 +319,16 @@ class DashboardScreen extends ConsumerWidget {
     DashboardCalendarNotifier calendarNotifier,
   ) {
     final today = DateTime.now();
-    final firstDayOfMonth = DateTime(calendarState.focusedDate.year, calendarState.focusedDate.month, 1);
-    final lastDayOfMonth = DateTime(calendarState.focusedDate.year, calendarState.focusedDate.month + 1, 0);
+    final firstDayOfMonth = DateTime(
+      calendarState.focusedDate.year,
+      calendarState.focusedDate.month,
+      1,
+    );
+    final lastDayOfMonth = DateTime(
+      calendarState.focusedDate.year,
+      calendarState.focusedDate.month + 1,
+      0,
+    );
     final startingWeekday = firstDayOfMonth.weekday;
     final daysInMonth = lastDayOfMonth.day;
 
@@ -289,18 +339,20 @@ class DashboardScreen extends ConsumerWidget {
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-            .map((day) => Expanded(
-                  child: Center(
-                    child: Text(
-                      day,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF8E8E93),
-                      ),
+            .map(
+              (day) => Expanded(
+                child: Center(
+                  child: Text(
+                    day,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8E8E93),
                     ),
                   ),
-                ))
+                ),
+              ),
+            )
             .toList(),
       ),
     );
@@ -318,11 +370,17 @@ class DashboardScreen extends ConsumerWidget {
 
     // Days of month
     for (var day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(calendarState.focusedDate.year, calendarState.focusedDate.month, day);
-      final isSelected = date.day == calendarState.selectedDate.day &&
+      final date = DateTime(
+        calendarState.focusedDate.year,
+        calendarState.focusedDate.month,
+        day,
+      );
+      final isSelected =
+          date.day == calendarState.selectedDate.day &&
           date.month == calendarState.selectedDate.month &&
           date.year == calendarState.selectedDate.year;
-      final isToday = date.day == today.day &&
+      final isToday =
+          date.day == today.day &&
           date.month == today.month &&
           date.year == today.year;
 
@@ -343,8 +401,8 @@ class DashboardScreen extends ConsumerWidget {
                 color: isSelected
                     ? const Color(0xFF007AFF)
                     : isToday
-                        ? const Color(0xFF007AFF).withValues(alpha:0.1)
-                        : Colors.transparent,
+                    ? const Color(0xFF007AFF).withValues(alpha: 0.1)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -352,12 +410,14 @@ class DashboardScreen extends ConsumerWidget {
                   '$day',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: isSelected || isToday ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w600
+                        : FontWeight.w400,
                     color: isSelected
                         ? Colors.white
                         : isToday
-                            ? const Color(0xFF007AFF)
-                            : const Color(0xFF1C1C1E),
+                        ? const Color(0xFF007AFF)
+                        : const Color(0xFF1C1C1E),
                   ),
                 ),
               ),
@@ -392,18 +452,22 @@ class DashboardScreen extends ConsumerWidget {
     return Column(children: days);
   }
 
-  Widget _buildReminderCard(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  Widget _buildReminderCard(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
     final reminders = ref.watch(notificationRemindersProvider);
     final historyNotifier = ref.read(reminderHistoryProvider.notifier);
     final today = DateTime.now();
-    
+
     // Find the next upcoming reminder (either due today and not completed, or next interval)
     NotificationReminder? nextReminder;
     DateTime? nextReminderDate;
-    
+
     for (final reminder in reminders) {
       if (!reminder.enabled) continue;
-      
+
       // Check if due today and not completed
       if (reminder.isDueOn(today) && !reminder.isCompletedOn(today)) {
         nextReminder = reminder;
@@ -411,14 +475,16 @@ class DashboardScreen extends ConsumerWidget {
         break;
       }
     }
-    
+
     // If no reminder due today or all completed, find next closest interval
     if (nextReminder == null) {
-      DateTime closestDate = DateTime.now().add(const Duration(days: 365)); // 1 year max
-      
+      DateTime closestDate = DateTime.now().add(
+        const Duration(days: 365),
+      ); // 1 year max
+
       for (final reminder in reminders) {
         if (!reminder.enabled) continue;
-        
+
         final nextDate = _findNextReminderDate(reminder, today);
         if (nextDate != null && nextDate.isBefore(closestDate)) {
           closestDate = nextDate;
@@ -427,7 +493,7 @@ class DashboardScreen extends ConsumerWidget {
         }
       }
     }
-    
+
     final hasReminder = nextReminder != null;
 
     return Container(
@@ -443,7 +509,7 @@ class DashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9500).withValues(alpha:0.1),
+                    color: const Color(0xFFFF9500).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -458,7 +524,9 @@ class DashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        nextReminderDate == today ? 'Next Reminder' : 'Upcoming Reminder',
+                        nextReminderDate == today
+                            ? 'Next Reminder'
+                            : 'Upcoming Reminder',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -493,10 +561,15 @@ class DashboardScreen extends ConsumerWidget {
                           // Mark the reminder as completed for the next reminder date and go to Day Details.
                           final reminder = nextReminder;
                           if (reminder != null && nextReminderDate != null) {
-                            final completedReminder = reminder.completeOn(nextReminderDate);
-                            ref.read(notificationRemindersProvider.notifier).updateReminder(completedReminder);
+                            final completedReminder = reminder.completeOn(
+                              nextReminderDate,
+                            );
+                            ref
+                                .read(notificationRemindersProvider.notifier)
+                                .updateReminder(completedReminder);
                             // Log history record
-                            final dateKey = '${nextReminderDate.year.toString().padLeft(4, '0')}-${nextReminderDate.month.toString().padLeft(2, '0')}-${nextReminderDate.day.toString().padLeft(2, '0')}';
+                            final dateKey =
+                                '${nextReminderDate.year.toString().padLeft(4, '0')}-${nextReminderDate.month.toString().padLeft(2, '0')}-${nextReminderDate.day.toString().padLeft(2, '0')}';
                             historyNotifier.add(
                               ReminderHistoryRecord(
                                 id: '${reminder.id}-$dateKey',
@@ -509,7 +582,9 @@ class DashboardScreen extends ConsumerWidget {
                             // Show snackbar confirmation
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text("✓ Reminder '${reminder.title}' completed!"),
+                                content: Text(
+                                  "✓ Reminder '${reminder.title}' completed!",
+                                ),
                                 backgroundColor: const Color(0xFF32D74B),
                                 duration: const Duration(seconds: 2),
                               ),
@@ -525,17 +600,17 @@ class DashboardScreen extends ConsumerWidget {
                         ? Colors.white
                         : const Color(0xFF8E8E93),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text(
                     'Complete',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -545,7 +620,7 @@ class DashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8E8E93).withValues(alpha:0.1),
+                    color: const Color(0xFF8E8E93).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -581,21 +656,27 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () async {
-                    final newReminder = await showModalBottomSheet<NotificationReminder>(
-                      context: context,
-                      isScrollControlled: true,
-                      useSafeArea: true,
-                      builder: (context) => const CreateReminderDialog(),
-                    );
+                    final newReminder =
+                        await showModalBottomSheet<NotificationReminder>(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          builder: (context) => const CreateReminderDialog(),
+                        );
                     if (newReminder != null) {
-                      ref.read(notificationRemindersProvider.notifier).addReminder(newReminder);
+                      ref
+                          .read(notificationRemindersProvider.notifier)
+                          .addReminder(newReminder);
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF007AFF),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -603,10 +684,7 @@ class DashboardScreen extends ConsumerWidget {
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text(
                     'Add',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -616,13 +694,16 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildFitbitStatusCard(
     BuildContext context,
-    FitbitVendorState state,
-    FitbitVendorNotifier notifier,
+    VendorIntegrationState state,
+    VendorIntegrationNotifier notifier,
+    DataSourceConfig dataSourceConfig,
+    AsyncValue<DateTime?> vendorLastSync,
   ) {
     final connected = state.status?.isConnected == true;
-    final expiringSoon = state.status?.isExpiringSoon == true;
-    final expiresAt = state.status?.expiresAt;
     final isBusy = state.isLoading || state.isSelecting;
+    final isFitbitSelected = dataSourceConfig.type == DataSourceType.fitbit;
+
+    final lastSyncValue = vendorLastSync.whenOrNull(data: (v) => v);
 
     return Container(
       width: double.infinity,
@@ -630,7 +711,12 @@ class DashboardScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        border: Border.all(
+          color: isFitbitSelected
+              ? const Color(0xFF00B0B9)
+              : const Color(0xFFE5E5EA),
+          width: isFitbitSelected ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,26 +726,55 @@ class DashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00B0B9).withValues(alpha:0.1),
+                  color: const Color(0xFF00B0B9).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.watch, color: Color(0xFF00B0B9)),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Fitbit Integration',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1C1C1E),
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Vendor Integration',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Selected: ${dataSourceConfig.type.displayName}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ),
+                    if (lastSyncValue != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Last sync: '
+                        '${DateFormat('MMM d, yyyy HH:mm').format(lastSyncValue)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8E8E93),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: connected ? const Color(0xFFE7F8EF) : const Color(0xFFF2F2F7),
+                  color: connected
+                      ? const Color(0xFFE7F8EF)
+                      : const Color(0xFFF2F2F7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -668,14 +783,19 @@ class DashboardScreen extends ConsumerWidget {
                     Icon(
                       connected ? Icons.check_circle : Icons.cancel,
                       size: 16,
-                      color: connected ? const Color(0xFF32D74B) : const Color(0xFF8E8E93),
+                      color: connected
+                          ? const Color(0xFF32D74B)
+                          : const Color(0xFF8E8E93),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       connected ? 'Connected' : 'Not connected',
                       style: TextStyle(
-                        color: connected ? const Color(0xFF1C1C1E) : const Color(0xFF8E8E93),
+                        color: connected
+                            ? const Color(0xFF1C1C1E)
+                            : const Color(0xFF8E8E93),
                         fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -683,41 +803,6 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            connected
-                ? 'Fitbit is connected through the backend gateway.'
-                : 'Connect Fitbit to sync wearable observations. Manual input stays available.',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
-          ),
-          if (expiresAt != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  expiringSoon ? Icons.warning_amber : Icons.schedule,
-                  size: 16,
-                  color: expiringSoon ? Colors.orange : const Color(0xFF8E8E93),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Token expires ${DateFormat('MMM d, HH:mm').format(expiresAt)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: expiringSoon ? Colors.orange : const Color(0xFF8E8E93),
-                    fontWeight: expiringSoon ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (state.error != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              state.error!,
-              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -726,39 +811,24 @@ class DashboardScreen extends ConsumerWidget {
                   onPressed: isBusy
                       ? null
                       : () async {
-                          final ok = await notifier.selectFitbitVendor();
-                          if (ok && context.mounted) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const VendorSelectionScreen(),
-                              ),
-                            );
-                          }
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const VendorSelectionScreen(),
+                            ),
+                          );
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF007AFF),
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(isBusy ? 'Updating…' : connected ? 'Manage' : 'Connect'),
+                  child: Text(
+                    isBusy
+                        ? 'Loading…'
+                        : connected
+                        ? 'Manage'
+                        : 'Setup',
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: state.isSyncing || !connected
-                    ? null
-                    : () async {
-                        final result = await notifier.triggerSync();
-                        if (context.mounted && result != null) {
-                          final created = result.createdCount;
-                          final failed = result.failedCount;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Sync finished · created $created · failed $failed'),
-                            ),
-                          );
-                        }
-                      },
-                child: Text(state.isSyncing ? 'Syncing…' : 'Sync now'),
               ),
             ],
           ),
@@ -779,7 +849,8 @@ class DashboardScreen extends ConsumerWidget {
 
         final isOffline = error == 'offline';
         final isTimeout = error == 'timeout';
-        final hasConnectionIssue = isOffline || isTimeout || backendStatus == 'unreachable';
+        final hasConnectionIssue =
+            isOffline || isTimeout || backendStatus == 'unreachable';
         final isFhirUnavailable = fhirStatus != 'connected';
 
         if (hasConnectionIssue) {
@@ -818,9 +889,9 @@ class DashboardScreen extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha:0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha:0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -828,7 +899,7 @@ class DashboardScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha:0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -872,10 +943,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             IconButton(
               onPressed: () => _showActionsBottomSheet(context, l10n),
-              icon: const Icon(
-                Icons.add,
-                color: Color(0xFF007AFF),
-              ),
+              icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
               tooltip: l10n.quickActions,
             ),
           ],
@@ -953,7 +1021,7 @@ class DashboardScreen extends ConsumerWidget {
         border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -965,7 +1033,7 @@ class DashboardScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.withValues(alpha:0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: color, size: 32),
@@ -1017,9 +1085,12 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha:0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -1034,11 +1105,7 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 10,
-                        color: color,
-                      ),
+                      Icon(Icons.arrow_forward_ios, size: 10, color: color),
                     ],
                   ),
                 ),
@@ -1123,7 +1190,7 @@ class DashboardScreen extends ConsumerWidget {
       leading: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha:0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color, size: 24),
@@ -1138,10 +1205,7 @@ class DashboardScreen extends ConsumerWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF8E8E93),
-        ),
+        style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
       ),
       trailing: const Icon(
         Icons.arrow_forward_ios,
@@ -1173,7 +1237,8 @@ class DashboardScreen extends ConsumerWidget {
       final targetWeekday = reminder.weekDay ?? 1;
       var nextDate = today.add(const Duration(days: 1));
 
-      while (nextDate.weekday != targetWeekday || reminder.isCompletedOn(nextDate)) {
+      while (nextDate.weekday != targetWeekday ||
+          reminder.isCompletedOn(nextDate)) {
         nextDate = nextDate.add(const Duration(days: 1));
         if (nextDate.difference(today).inDays > 365) {
           return null; // Safety limit
@@ -1187,7 +1252,8 @@ class DashboardScreen extends ConsumerWidget {
       final targetDay = reminder.monthDay ?? 1;
       var nextDate = DateTime(today.year, today.month, targetDay);
 
-      if (nextDate.isBefore(today) || (nextDate == today && reminder.isCompletedOn(today))) {
+      if (nextDate.isBefore(today) ||
+          (nextDate == today && reminder.isCompletedOn(today))) {
         // Move to next month
         nextDate = DateTime(today.year, today.month + 1, targetDay);
       }

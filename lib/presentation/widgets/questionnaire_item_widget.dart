@@ -32,10 +32,10 @@ class QuestionnaireItemWidget extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -146,7 +146,7 @@ class QuestionnaireItemWidget extends StatelessWidget {
                       ),
                     ),
                   ),
-                ]
+                ],
               ],
             ),
           ),
@@ -181,7 +181,7 @@ class QuestionnaireItemWidget extends StatelessWidget {
                 ],
               ),
             ),
-          ]
+          ],
         ],
       ),
     );

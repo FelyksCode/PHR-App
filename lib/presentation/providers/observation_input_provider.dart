@@ -4,13 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class ObservationInputState {
   final bool isSubmitting;
 
-  const ObservationInputState({
-    required this.isSubmitting,
-  });
+  const ObservationInputState({required this.isSubmitting});
 
-  ObservationInputState copyWith({
-    bool? isSubmitting,
-  }) {
+  ObservationInputState copyWith({bool? isSubmitting}) {
     return ObservationInputState(
       isSubmitting: isSubmitting ?? this.isSubmitting,
     );
@@ -19,7 +15,8 @@ class ObservationInputState {
 
 /// State notifier for observation input
 class ObservationInputNotifier extends StateNotifier<ObservationInputState> {
-  ObservationInputNotifier() : super(const ObservationInputState(isSubmitting: false));
+  ObservationInputNotifier()
+    : super(const ObservationInputState(isSubmitting: false));
 
   void setSubmitting(bool isSubmitting) {
     state = state.copyWith(isSubmitting: isSubmitting);
@@ -29,8 +26,8 @@ class ObservationInputNotifier extends StateNotifier<ObservationInputState> {
 /// Provider for observation input state
 final observationInputProvider =
     StateNotifierProvider<ObservationInputNotifier, ObservationInputState>(
-  (ref) => ObservationInputNotifier(),
-);
+      (ref) => ObservationInputNotifier(),
+    );
 
 /// Provider for observation type search filter
 final observationSearchProvider = StateProvider<String>((ref) => '');

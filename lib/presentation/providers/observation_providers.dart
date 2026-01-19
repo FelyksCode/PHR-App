@@ -12,7 +12,9 @@ final healthDataRepositoryProvider = Provider<HealthDataRepositoryImpl>((ref) {
   return HealthDataRepositoryImpl(apiService);
 });
 
-final submitObservationUseCaseProvider = Provider<SubmitObservationUseCase>((ref) {
+final submitObservationUseCaseProvider = Provider<SubmitObservationUseCase>((
+  ref,
+) {
   final repository = ref.watch(healthDataRepositoryProvider);
   return SubmitObservationUseCase(repository);
 });
@@ -23,31 +25,49 @@ final getObservationsUseCaseProvider = Provider<GetObservationsUseCase>((ref) {
 });
 
 // State providers
-final observationsProvider = StateNotifierProvider<ObservationsNotifier, AsyncValue<List<ObservationEntity>>>((ref) {
-  final getObservationsUseCase = ref.watch(getObservationsUseCaseProvider);
-  return ObservationsNotifier(getObservationsUseCase);
-});
+final observationsProvider =
+    StateNotifierProvider<
+      ObservationsNotifier,
+      AsyncValue<List<ObservationEntity>>
+    >((ref) {
+      final getObservationsUseCase = ref.watch(getObservationsUseCaseProvider);
+      return ObservationsNotifier(getObservationsUseCase);
+    });
 
-final observationSubmissionProvider = StateNotifierProvider<ObservationSubmissionNotifier, AsyncValue<bool?>>((ref) {
-  final submitObservationUseCase = ref.watch(submitObservationUseCaseProvider);
-  final observationsNotifier = ref.watch(observationsProvider.notifier);
-  return ObservationSubmissionNotifier(submitObservationUseCase, observationsNotifier);
-});
+final observationSubmissionProvider =
+    StateNotifierProvider<ObservationSubmissionNotifier, AsyncValue<bool?>>((
+      ref,
+    ) {
+      final submitObservationUseCase = ref.watch(
+        submitObservationUseCaseProvider,
+      );
+      final observationsNotifier = ref.watch(observationsProvider.notifier);
+      return ObservationSubmissionNotifier(
+        submitObservationUseCase,
+        observationsNotifier,
+      );
+    });
 
 // Latest observations from FHIR API provider
-final latestObservationsProvider = StateNotifierProvider<LatestObservationsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final apiService = ref.watch(apiServiceProvider);
-  final cache = ref.watch(localCacheServiceProvider);
-  return LatestObservationsNotifier(ref, apiService, cache);
-});
+final latestObservationsProvider =
+    StateNotifierProvider<
+      LatestObservationsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      final apiService = ref.watch(apiServiceProvider);
+      final cache = ref.watch(localCacheServiceProvider);
+      return LatestObservationsNotifier(ref, apiService, cache);
+    });
 
-class LatestObservationsNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+class LatestObservationsNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final Ref _ref;
   final ApiService _apiService;
   final dynamic _cache; // LocalCacheService
   bool _initialized = false;
 
-  LatestObservationsNotifier(this._ref, this._apiService, this._cache) : super(const AsyncValue.loading()) {
+  LatestObservationsNotifier(this._ref, this._apiService, this._cache)
+    : super(const AsyncValue.loading()) {
     _initializeAsync();
   }
 
@@ -100,7 +120,7 @@ class LatestObservationsNotifier extends StateNotifier<AsyncValue<List<Map<Strin
       }
     } catch (error, stackTrace) {
       if (!mounted) return;
-      
+
       // Keep cached data if fetch fails and we already have it
       final currentData = state.value;
       if (currentData == null || currentData.isEmpty) {
@@ -126,10 +146,12 @@ class LatestObservationsNotifier extends StateNotifier<AsyncValue<List<Map<Strin
   }
 }
 
-class ObservationsNotifier extends StateNotifier<AsyncValue<List<ObservationEntity>>> {
+class ObservationsNotifier
+    extends StateNotifier<AsyncValue<List<ObservationEntity>>> {
   final GetObservationsUseCase _getObservationsUseCase;
 
-  ObservationsNotifier(this._getObservationsUseCase) : super(const AsyncValue.loading()) {
+  ObservationsNotifier(this._getObservationsUseCase)
+    : super(const AsyncValue.loading()) {
     loadObservations();
   }
 
@@ -153,15 +175,17 @@ class ObservationSubmissionNotifier extends StateNotifier<AsyncValue<bool?>> {
   final SubmitObservationUseCase _submitObservationUseCase;
   final ObservationsNotifier _observationsNotifier;
 
-  ObservationSubmissionNotifier(this._submitObservationUseCase, this._observationsNotifier) 
-      : super(const AsyncValue.data(null));
+  ObservationSubmissionNotifier(
+    this._submitObservationUseCase,
+    this._observationsNotifier,
+  ) : super(const AsyncValue.data(null));
 
   Future<void> submitObservation(ObservationEntity observation) async {
     try {
       state = const AsyncValue.loading();
       final success = await _submitObservationUseCase.execute(observation);
       state = AsyncValue.data(success);
-      
+
       if (success) {
         _observationsNotifier.addObservation(observation);
       }

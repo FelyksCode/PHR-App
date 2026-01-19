@@ -19,11 +19,11 @@ extension ConditionSeverityUI on ConditionSeverity {
   Color get backgroundColor {
     switch (this) {
       case ConditionSeverity.mild:
-        return Colors.amber.withValues(alpha:0.1);
+        return Colors.amber.withValues(alpha: 0.1);
       case ConditionSeverity.moderate:
-        return Colors.orange.withValues(alpha:0.1);
+        return Colors.orange.withValues(alpha: 0.1);
       case ConditionSeverity.severe:
-        return Colors.red.withValues(alpha:0.1);
+        return Colors.red.withValues(alpha: 0.1);
     }
   }
 

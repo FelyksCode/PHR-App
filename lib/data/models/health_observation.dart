@@ -24,7 +24,8 @@ class HealthObservation {
       parsedValue = double.tryParse(rawValue);
     }
 
-    final rawDate = json['effectiveDateTime'] ?? json['timestamp'] ?? json['date'];
+    final rawDate =
+        json['effectiveDateTime'] ?? json['timestamp'] ?? json['date'];
     DateTime? parsedDate;
     if (rawDate is String) {
       parsedDate = DateTime.tryParse(rawDate);
@@ -32,7 +33,8 @@ class HealthObservation {
 
     return HealthObservation(
       id: json['id']?.toString() ?? '',
-      display: json['display']?.toString() ?? json['type']?.toString() ?? 'Unknown',
+      display:
+          json['display']?.toString() ?? json['type']?.toString() ?? 'Unknown',
       value: parsedValue,
       unit: json['unit']?.toString(),
       effectiveDateTime: parsedDate,
@@ -77,7 +79,8 @@ class FitbitStatus {
     }
 
     final connected = json['connected'] == true || json['is_connected'] == true;
-    final expiringSoon = json['expiring'] == true || json['token_expiring'] == true;
+    final expiringSoon =
+        json['expiring'] == true || json['token_expiring'] == true;
 
     return FitbitStatus(
       connected: connected,
@@ -118,12 +121,17 @@ class SyncResult {
     return SyncResult(
       status: json['status']?.toString() ?? 'unknown',
       message: json['message']?.toString(),
-      createdCount: json['created'] is int ? json['created'] as int : int.tryParse(json['created']?.toString() ?? '') ?? 0,
-      updatedCount: json['updated'] is int ? json['updated'] as int : int.tryParse(json['updated']?.toString() ?? '') ?? 0,
-      failedCount: json['failed'] is int ? json['failed'] as int : int.tryParse(json['failed']?.toString() ?? '') ?? 0,
+      createdCount: json['created'] is int
+          ? json['created'] as int
+          : int.tryParse(json['created']?.toString() ?? '') ?? 0,
+      updatedCount: json['updated'] is int
+          ? json['updated'] as int
+          : int.tryParse(json['updated']?.toString() ?? '') ?? 0,
+      failedCount: json['failed'] is int
+          ? json['failed'] as int
+          : int.tryParse(json['failed']?.toString() ?? '') ?? 0,
     );
   }
-
 }
 
 class PaginatedHealthObservations {

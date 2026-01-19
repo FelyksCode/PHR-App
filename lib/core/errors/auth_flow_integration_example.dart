@@ -137,17 +137,9 @@ class AuthNotifier extends StateNotifier<AuthStateModel> {
       final user = await _authRepository.login(email, password);
       state = state.copyWith(user: user, isLoading: false);
     } on LocalValidationError catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        validationError: e,
-        error: null,
-      );
+      state = state.copyWith(isLoading: false, validationError: e, error: null);
     } on AppError catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e,
-        validationError: null,
-      );
+      state = state.copyWith(isLoading: false, error: e, validationError: null);
     }
   }
 }
@@ -186,8 +178,9 @@ class LoginScreenExample extends ConsumerWidget {
             ElevatedButton(
               onPressed: authState.isLoading
                   ? null
-                  : () =>
-                      ref.read(authNotifierProvider.notifier).login('user@example.com', 'password123'),
+                  : () => ref
+                        .read(authNotifierProvider.notifier)
+                        .login('user@example.com', 'password123'),
               child: authState.isLoading
                   ? const SizedBox(
                       height: 20,
@@ -213,9 +206,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AuthStateModel>((ref) {
-  final repo = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repo);
-});
+      final repo = ref.watch(authRepositoryProvider);
+      return AuthNotifier(repo);
+    });
 
 // ============================================================================
 // Models
@@ -226,21 +219,14 @@ class User {
   final String email;
   final String name;
 
-  User({
-    required this.id,
-    required this.email,
-    required this.name,
-  });
+  User({required this.id, required this.email, required this.name});
 }
 
 class LoginResponse {
   final User user;
   final String accessToken;
 
-  LoginResponse({
-    required this.user,
-    required this.accessToken,
-  });
+  LoginResponse({required this.user, required this.accessToken});
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
@@ -255,4 +241,3 @@ class LoginResponse {
 }
 
 // (removed duplicate state model and model classes to avoid redefinitions)
-

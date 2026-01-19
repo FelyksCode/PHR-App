@@ -8,12 +8,31 @@ import '../core/errors/api_error_mapper.dart';
 import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
 import '../core/secure_storage/secure_storage_service.dart';
+import '../core/utils/concurrency_pool.dart';
+import '../core/utils/retry_with_backoff.dart';
 import '../data/models/condition_model.dart';
+import '../data/models/backend_sync_status.dart';
 import '../data/models/health_observation.dart';
 import '../data/models/observation_model.dart';
+import '../domain/entities/condition_input.dart';
 import '../domain/entities/observation_entity.dart';
 import '../providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class MultipleConditionSubmitResult {
+  final int total;
+  final List<String> succeededLocalIds;
+  final Map<String, String> failedByLocalId;
+
+  const MultipleConditionSubmitResult({
+    required this.total,
+    required this.succeededLocalIds,
+    required this.failedByLocalId,
+  });
+
+  int get succeededCount => succeededLocalIds.length;
+  int get failedCount => failedByLocalId.length;
+}
 
 typedef UnauthorizedCallback = Future<void> Function();
 
@@ -239,13 +258,29 @@ class ApiService {
     }
   }
 
+  Future<void> disconnectVendor(String vendor) async {
+    try {
+      await _dio.post(
+        ApiConstants.vendorDisconnectEndpoint,
+        data: {'vendor': vendor},
+      );
+    } on DioException catch (e) {
+      throw _mapDioError(e);
+    }
+  }
+
   Future<Uri> buildFitbitAuthorizeUri() async {
+    return buildVendorAuthorizeUri('fitbit');
+  }
+
+  Future<Uri> buildVendorAuthorizeUri(String vendor) async {
     final base = _dio.options.baseUrl.endsWith('/')
         ? _dio.options.baseUrl.substring(0, _dio.options.baseUrl.length - 1)
         : _dio.options.baseUrl;
 
     final token = await _getAccessToken();
-    final uri = Uri.parse('$base${ApiConstants.fitbitAuthorizeEndpoint}');
+    final path = '/integrations/$vendor/authorize';
+    final uri = Uri.parse('$base$path');
     if (token == null || token.isEmpty) {
       return uri;
     }
@@ -256,24 +291,114 @@ class ApiService {
   }
 
   Future<FitbitStatus> getFitbitStatus() async {
+    return getVendorStatus('fitbit');
+  }
+
+  Future<FitbitStatus> getVendorStatus(String vendor) async {
     try {
-      final response = await _dio.get(ApiConstants.fitbitStatusEndpoint);
+      final response = await _dio.get('/integrations/$vendor/status');
       if (response.data is Map<String, dynamic>) {
         return FitbitStatus.fromJson(response.data as Map<String, dynamic>);
       }
-      throw const ApiException('Unexpected Fitbit status response');
+      throw ApiException('Unexpected $vendor status response');
     } on DioException catch (e) {
       throw _mapDioError(e);
     }
   }
 
-  Future<SyncResult> triggerImmediateSync() async {
+  /// Clean API: triggers Fitbit sync (job-based ingestion).
+  Future<String?> triggerFitbitSync() => triggerVendorSync(vendor: 'fitbit');
+
+  /// Clean API: fetch backend sync job status.
+  Future<BackendSyncStatus> getSyncStatus() => getBackendSyncStatus();
+
+  /// Clean API: fetch standardized observations from backend.
+  Future<PaginatedHealthObservations> fetchObservations({
+    String? type,
+    int page = 1,
+    int pageSize = 20,
+  }) => fetchHealthObservations(type: type, page: page, pageSize: pageSize);
+
+  /// Triggers a backend-managed vendor sync job.
+  ///
+  /// Expected behavior: 202 Accepted with no health data returned.
+  Future<String?> triggerVendorSync({required String vendor}) async {
     try {
-      final response = await _dio.post(ApiConstants.syncImmediateEndpoint);
-      if (response.data is Map<String, dynamic>) {
-        return SyncResult.fromJson(response.data as Map<String, dynamic>);
+      final response = await _dio.post(ApiConstants.vendorSyncEndpoint(vendor));
+
+      final status = response.statusCode ?? 0;
+      if (status == 202 || status == 200 || status == 201) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          return data['sync_job_id']?.toString() ??
+              data['job_id']?.toString() ??
+              data['id']?.toString();
+        }
+        return null;
       }
-      return const SyncResult(status: 'unknown', message: 'No response body');
+
+      throw ApiException(
+        'Unexpected response triggering $vendor sync',
+        statusCode: status,
+      );
+    } on DioException catch (e) {
+      throw _mapDioError(e);
+    }
+  }
+
+  /// Retrieves backend sync job status.
+  Future<BackendSyncStatus> getBackendSyncStatus() async {
+    try {
+      final response = await _dio.get(ApiConstants.syncStatusEndpoint);
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final vendors = data['vendors'];
+        if (vendors is List && vendors.isNotEmpty) {
+          final mapped = vendors.whereType<Map<String, dynamic>>().toList();
+          if (mapped.isNotEmpty) {
+            // Prefer fitbit entry when present, otherwise fall back to first.
+            final vendorEntry = mapped.firstWhere(
+              (v) => v['vendor']?.toString().toLowerCase() == 'fitbit',
+              orElse: () => mapped.first,
+            );
+            return BackendSyncStatus.fromJson(vendorEntry);
+          }
+        }
+
+        return BackendSyncStatus.fromJson(data);
+      }
+      if (data is String) {
+        return BackendSyncStatus.fromJson({'status': data});
+      }
+      return const BackendSyncStatus(status: BackendSyncStatusType.unknown);
+    } on DioException catch (e) {
+      throw _mapDioError(e);
+    }
+  }
+
+  /// Fetch the last vendor sync timestamp from the backend.
+  Future<DateTime?> getLastVendorSyncTimestamp() async {
+    try {
+      final response = await _dio.get(ApiConstants.vendorsEndpoint);
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return null;
+
+      final integrations = data['integrations'];
+      if (integrations is! List || integrations.isEmpty) return null;
+
+      final mapped = integrations.whereType<Map<String, dynamic>>().toList();
+      if (mapped.isEmpty) return null;
+
+      // Prefer the active integration if present, otherwise first in list
+      final active = mapped.firstWhere(
+        (i) => i['is_active'] == true,
+        orElse: () => mapped.first,
+      );
+
+      final rawTs = active['last_sync_at']?.toString();
+      if (rawTs == null || rawTs.isEmpty) return null;
+
+      return DateTime.tryParse(rawTs)?.toLocal();
     } on DioException catch (e) {
       throw _mapDioError(e);
     }
@@ -286,7 +411,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        ApiConstants.healthObservationsEndpoint,
+        ApiConstants.observationsEndpoint,
         queryParameters: {
           'page': page,
           'page_size': pageSize,
@@ -634,6 +759,109 @@ class ApiService {
     }
   }
 
+  /// Submit multiple conditions in one user action.
+  ///
+  /// Backend constraint: one FHIR Condition per call.
+  ///
+  /// - Sends one request per condition
+  /// - Limits concurrency to 3
+  /// - Retries transient errors (429/502/503/504) with exponential backoff (max 3 retries)
+  /// - Includes client-side idempotency key in Condition.identifier[0]
+  Future<MultipleConditionSubmitResult> submitMultipleConditions(
+    List<ConditionInput> conditions, {
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (conditions.isEmpty) {
+      return const MultipleConditionSubmitResult(
+        total: 0,
+        succeededLocalIds: [],
+        failedByLocalId: {},
+      );
+    }
+
+    final token = await _getAccessToken();
+    if (token == null) {
+      return MultipleConditionSubmitResult(
+        total: conditions.length,
+        succeededLocalIds: const [],
+        failedByLocalId: {
+          for (final c in conditions) c.localId: 'Not authenticated',
+        },
+      );
+    }
+
+    var completed = 0;
+    final succeeded = <String>[];
+    final failed = <String, String>{};
+
+    Future<void> submitOne(ConditionInput input) async {
+      final payload = input.toFhirConditionJson();
+
+      await retryWithBackoff(
+        () async {
+          final response = await _dio.post(
+            '/fhir/Condition',
+            data: payload,
+            options: Options(
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            ),
+          );
+
+          final code = response.statusCode ?? 0;
+          if (code == 200 || code == 201) return;
+
+          throw ApiException(
+            'Unexpected response submitting condition',
+            statusCode: code,
+          );
+        },
+        shouldRetry: (error) {
+          if (error is ApiException) {
+            final code = error.statusCode;
+            return code == 429 || code == 502 || code == 503 || code == 504;
+          }
+          if (error is DioException) {
+            final code = error.response?.statusCode;
+            return code == 429 || code == 502 || code == 503 || code == 504;
+          }
+          return false;
+        },
+        maxRetries: 3,
+      );
+    }
+
+    await runWithConcurrencyLimit<ConditionInput, void>(
+      items: conditions,
+      limit: 3,
+      task: (input, _) async {
+        try {
+          await submitOne(input);
+          succeeded.add(input.localId);
+        } on DioException catch (e) {
+          final apiErr = _mapDioError(e);
+          failed[input.localId] = apiErr.message;
+        } on ApiException catch (e) {
+          failed[input.localId] = e.message;
+        } catch (e) {
+          failed[input.localId] = e.toString();
+        } finally {
+          completed += 1;
+          onProgress?.call(completed, conditions.length);
+        }
+      },
+    );
+
+    return MultipleConditionSubmitResult(
+      total: conditions.length,
+      succeededLocalIds: succeeded,
+      failedByLocalId: failed,
+    );
+  }
+
   /// Submit a FHIR Bundle (transaction) containing multiple Condition resources
   /// This is used by the questionnaire system to batch submit symptoms and side effects
   Future<bool> submitFhirBundle(Map<String, dynamic> bundle) async {
@@ -791,7 +1019,8 @@ class ApiService {
       // If this is a component-based BP panel, extract component values
       if (components != null && components.isNotEmpty) {
         // Classify as Blood Pressure when panel code or display indicates it
-        if ((type.toLowerCase().contains('blood pressure')) || loincCode == '35094-2') {
+        if ((type.toLowerCase().contains('blood pressure')) ||
+            loincCode == '35094-2') {
           type = 'Blood Pressure';
         }
 

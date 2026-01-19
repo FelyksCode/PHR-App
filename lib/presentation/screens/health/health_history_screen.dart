@@ -69,10 +69,7 @@ class HealthHistoryScreen extends ConsumerWidget {
                 ),
               ),
             ],
-            icon: const Icon(
-              Icons.add,
-              color: Color(0xFF007AFF),
-            ),
+            icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
             tooltip: 'Quick Actions',
           ),
         ],
@@ -155,7 +152,7 @@ class HealthHistoryScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withValues(alpha:0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 28),

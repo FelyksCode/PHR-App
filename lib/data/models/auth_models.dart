@@ -2,16 +2,10 @@ class LoginRequest {
   final String email;
   final String password;
 
-  const LoginRequest({
-    required this.email,
-    required this.password,
-  });
+  const LoginRequest({required this.email, required this.password});
 
   Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-    };
+    return {'email': email, 'password': password};
   }
 }
 
@@ -63,10 +57,7 @@ class LoginResponse {
   final String accessToken;
   final String tokenType;
 
-  const LoginResponse({
-    required this.accessToken,
-    required this.tokenType,
-  });
+  const LoginResponse({required this.accessToken, required this.tokenType});
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
@@ -76,10 +67,7 @@ class LoginResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'access_token': accessToken,
-      'token_type': tokenType,
-    };
+    return {'access_token': accessToken, 'token_type': tokenType};
   }
 }
 
@@ -100,7 +88,9 @@ class AuthState {
 
   factory AuthState.fromJson(Map<String, dynamic> json) {
     return AuthState(
-      user: json['user'] != null ? User.fromJson(json['user'] as Map<String, dynamic>) : null,
+      user: json['user'] != null
+          ? User.fromJson(json['user'] as Map<String, dynamic>)
+          : null,
       accessToken: json['access_token'] as String?,
       isAuthenticated: json['is_authenticated'] as bool? ?? false,
       isLoading: json['is_loading'] as bool? ?? false,
@@ -140,4 +130,3 @@ class AuthState {
 
   static const AuthState initial = AuthState();
 }
-

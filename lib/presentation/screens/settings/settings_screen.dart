@@ -8,8 +8,6 @@ import '../notifications/health_reminders_screen.dart';
 import 'sync_settings_screen.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import '../vendors/vendor_selection_screen.dart';
-import '../observations/health_observation_list_screen.dart';
-
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -66,7 +64,9 @@ class SettingsScreen extends ConsumerWidget {
                         color: const Color(0xFF5856D6),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SyncSettingsScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const SyncSettingsScreen(),
+                            ),
                           );
                         },
                       ),
@@ -78,19 +78,9 @@ class SettingsScreen extends ConsumerWidget {
                         color: const Color(0xFF00B0B9),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const VendorSelectionScreen()),
-                          );
-                        },
-                      ),
-                      _buildSettingItem(
-                        context,
-                        title: 'Wearable Data',
-                        subtitle: 'View synced observations',
-                        icon: Icons.insights,
-                        color: const Color(0xFF34C759),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const HealthObservationListScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const VendorSelectionScreen(),
+                            ),
                           );
                         },
                       ),
@@ -109,11 +99,12 @@ class SettingsScreen extends ConsumerWidget {
                         color: const Color(0xFFFF9500),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const HealthRemindersScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const HealthRemindersScreen(),
+                            ),
                           );
                         },
                       ),
-
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -124,7 +115,9 @@ class SettingsScreen extends ConsumerWidget {
                       _buildSettingItem(
                         context,
                         title: l10n.languageSettings,
-                        subtitle: locale.languageCode == 'id' ? l10n.indonesian : l10n.english,
+                        subtitle: locale.languageCode == 'id'
+                            ? l10n.indonesian
+                            : l10n.english,
                         icon: Icons.language,
                         color: const Color(0xFF32D74B),
                         onTap: () => _showLanguageDialog(context, ref, l10n),
@@ -176,9 +169,9 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildUserProfileCard(BuildContext context, dynamic user) {
     return InkWell(
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -193,7 +186,7 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: const Color(0xFF007AFF).withValues(alpha:0.1),
+              backgroundColor: const Color(0xFF007AFF).withValues(alpha: 0.1),
               child: Text(
                 (user?.name ?? 'U').isNotEmpty
                     ? (user?.name ?? 'U')[0].toUpperCase()
@@ -263,9 +256,7 @@ class SettingsScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
           ),
-          child: Column(
-            children: items,
-          ),
+          child: Column(children: items),
         ),
       ],
     );
@@ -285,7 +276,7 @@ class SettingsScreen extends ConsumerWidget {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: color.withValues(alpha:0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: color, size: 22),
@@ -300,10 +291,7 @@ class SettingsScreen extends ConsumerWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF8E8E93),
-        ),
+        style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
       ),
       trailing: const Icon(
         Icons.arrow_forward_ios,
@@ -318,41 +306,43 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE5E5EA), width: 1),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE5E5EA), width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () async {
-              final shouldLogout = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+              final shouldLogout =
+                  await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF3B30),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Logout'),
+                        ),
+                      ],
                     ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF3B30),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Logout'),
-                    ),
-                  ],
-                ),
-              ) ?? false;
-              
+                  ) ??
+                  false;
+
               if (shouldLogout) {
                 await ref.read(authProvider.notifier).logout();
                 if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/login', (route) => false);
                 }
               }
             },
@@ -367,10 +357,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             child: const Text(
               'Logout',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -391,9 +378,7 @@ class SettingsScreen extends ConsumerWidget {
         userName: user?.name,
         userEmail: user?.email,
       );
-      messenger.showSnackBar(
-        SnackBar(content: Text('Exported to PDF: $path')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Exported to PDF: $path')));
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Failed to export data: $e')),
@@ -401,9 +386,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showLanguageDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showLanguageDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
     final currentLocale = ref.read(localeProvider);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -413,14 +402,8 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             SegmentedButton<String>(
               segments: [
-                ButtonSegment(
-                  value: 'en',
-                  label: Text(l10n.english),
-                ),
-                ButtonSegment(
-                  value: 'id',
-                  label: Text(l10n.indonesian),
-                ),
+                ButtonSegment(value: 'en', label: Text(l10n.english)),
+                ButtonSegment(value: 'id', label: Text(l10n.indonesian)),
               ],
               selected: {currentLocale.languageCode},
               onSelectionChanged: (selection) {
