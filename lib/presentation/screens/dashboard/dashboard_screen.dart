@@ -4,7 +4,7 @@ import 'package:phr_app/data/models/notification_reminder.dart';
 import 'package:phr_app/data/models/reminder_history_record.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
-import 'package:phr_app/presentation/providers/dashboard_calendar_provider.dart';
+import 'package:phr_app/presentation/providers/connectivity_provider.dart';
 import 'package:phr_app/providers/auth_provider.dart';
 import 'package:phr_app/providers/data_source_providers.dart';
 import 'package:phr_app/domain/entities/data_source_config.dart';
@@ -20,7 +20,6 @@ import '../conditions/condition_screen.dart';
 import '../observations/observations_history_screen.dart';
 import '../conditions/conditions_history_screen.dart';
 import '../settings/settings_screen.dart';
-import '../shared/day_details_screen.dart';
 import '../vendors/vendor_selection_screen.dart';
 import '../notifications/notifications_screen.dart';
 
@@ -32,46 +31,30 @@ class DashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final latestObservationsState = ref.watch(latestObservationsProvider);
     final latestConditionsState = ref.watch(latestConditionsProvider);
-    final healthStatusState = ref.watch(healthStatusProvider);
     final authState = ref.watch(authProvider);
     final fitbitState = ref.watch(vendorIntegrationProvider('fitbit'));
     final fitbitNotifier = ref.read(
       vendorIntegrationProvider('fitbit').notifier,
     );
     final vendorLastSync = ref.watch(vendorLastSyncProvider);
-    final calendarState = ref.watch(dashboardCalendarProvider);
-    final calendarNotifier = ref.read(dashboardCalendarProvider.notifier);
     final dataSourceConfigState = ref.watch(dataSourceConfigProvider);
+    final isOnline = ref.watch(connectivityProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.greetingMorning,
-              style: const TextStyle(
-                color: Color(0xFF8E8E93),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            Text(
-              authState.user?.name ?? l10n.userFallback,
-              style: const TextStyle(
-                color: Color(0xFF1C1C1E),
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        title: Text(
+          'Hello, ${authState.user?.name ?? l10n.userFallback}',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: false,
-        toolbarHeight: 70,
         actions: [
           IconButton(
             onPressed: () {
@@ -79,7 +62,7 @@ class DashboardScreen extends ConsumerWidget {
                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
-            icon: const Icon(Icons.settings, color: Color(0xFF8E8E93)),
+            icon: const Icon(Icons.settings_outlined, color: Colors.black),
             tooltip: l10n.settings,
           ),
         ],
@@ -93,16 +76,16 @@ class DashboardScreen extends ConsumerWidget {
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildConnectivityBanner(healthStatusState, l10n),
-              const SizedBox(height: 16),
-              _buildCalendarView(context, ref, calendarState, calendarNotifier),
-              const SizedBox(height: 16),
+              if (!isOnline) ...[
+                _buildOfflineBanner(),
+                const SizedBox(height: 16),
+              ],
               _buildReminderCard(context, ref, l10n),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               // Vendor integration card - aware of selected data source
               dataSourceConfigState.when(
                 data: (config) => _buildFitbitStatusCard(
@@ -135,323 +118,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCalendarView(
-    BuildContext context,
-    WidgetRef ref,
-    DashboardCalendarState calendarState,
-    DashboardCalendarNotifier calendarNotifier,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-      ),
-      child: Column(
-        children: [
-          // Header with month/year and toggle
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        calendarNotifier.navigateToPreviousPeriod();
-                      },
-                      icon: const Icon(Icons.chevron_left, size: 24),
-                      color: const Color(0xFF007AFF),
-                    ),
-                    Text(
-                      calendarState.isMonthView
-                          ? DateFormat(
-                              'MMMM yyyy',
-                            ).format(calendarState.focusedDate)
-                          : 'Week of ${DateFormat('MMM dd').format(calendarState.focusedDate.subtract(Duration(days: calendarState.focusedDate.weekday - 1)))}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        calendarNotifier.navigateToNextPeriod();
-                      },
-                      icon: const Icon(Icons.chevron_right, size: 24),
-                      color: const Color(0xFF007AFF),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: () {
-                    calendarNotifier.toggleViewMode();
-                  },
-                  icon: Icon(
-                    calendarState.isMonthView
-                        ? Icons.calendar_view_week
-                        : Icons.calendar_month,
-                    size: 24,
-                  ),
-                  color: const Color(0xFF007AFF),
-                  tooltip: calendarState.isMonthView
-                      ? 'Week View'
-                      : 'Month View',
-                ),
-              ],
-            ),
-          ),
-          // Calendar grid
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: calendarState.isMonthView
-                ? _buildMonthCalendar(ref, calendarState, calendarNotifier)
-                : _buildWeekCalendar(ref, calendarState, calendarNotifier),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeekCalendar(
-    WidgetRef ref,
-    DashboardCalendarState calendarState,
-    DashboardCalendarNotifier calendarNotifier,
-  ) {
-    final today = DateTime.now();
-    final startOfWeek = calendarState.focusedDate.subtract(
-      Duration(days: calendarState.focusedDate.weekday - 1),
-    );
-    final weekDays = List.generate(
-      7,
-      (index) => startOfWeek.add(Duration(days: index)),
-    );
-
-    return Column(
-      children: [
-        // Day names
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-              .map(
-                (day) => Expanded(
-                  child: Center(
-                    child: Text(
-                      day,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 12),
-        // Week days
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: weekDays.map((date) {
-            final isSelected =
-                date.day == calendarState.selectedDate.day &&
-                date.month == calendarState.selectedDate.month &&
-                date.year == calendarState.selectedDate.year;
-            final isToday =
-                date.day == today.day &&
-                date.month == today.month &&
-                date.year == today.year;
-
-            return Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  calendarNotifier.selectDate(date);
-                  Navigator.of(ref.context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          DayDetailsScreen(selectedDate: date),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF007AFF)
-                        : isToday
-                        ? const Color(0xFF007AFF).withValues(alpha: 0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${date.day}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: isSelected || isToday
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: isSelected
-                            ? Colors.white
-                            : isToday
-                            ? const Color(0xFF007AFF)
-                            : const Color(0xFF1C1C1E),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMonthCalendar(
-    WidgetRef ref,
-    DashboardCalendarState calendarState,
-    DashboardCalendarNotifier calendarNotifier,
-  ) {
-    final today = DateTime.now();
-    final firstDayOfMonth = DateTime(
-      calendarState.focusedDate.year,
-      calendarState.focusedDate.month,
-      1,
-    );
-    final lastDayOfMonth = DateTime(
-      calendarState.focusedDate.year,
-      calendarState.focusedDate.month + 1,
-      0,
-    );
-    final startingWeekday = firstDayOfMonth.weekday;
-    final daysInMonth = lastDayOfMonth.day;
-
-    final days = <Widget>[];
-
-    // Day names
-    days.add(
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-            .map(
-              (day) => Expanded(
-                child: Center(
-                  child: Text(
-                    day,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-
-    days.add(const SizedBox(height: 8));
-
-    // Calendar days
-    final weeks = <List<Widget>>[];
-    var currentWeek = <Widget>[];
-
-    // Empty cells before first day
-    for (var i = 1; i < startingWeekday; i++) {
-      currentWeek.add(const Expanded(child: SizedBox(height: 40)));
-    }
-
-    // Days of month
-    for (var day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(
-        calendarState.focusedDate.year,
-        calendarState.focusedDate.month,
-        day,
-      );
-      final isSelected =
-          date.day == calendarState.selectedDate.day &&
-          date.month == calendarState.selectedDate.month &&
-          date.year == calendarState.selectedDate.year;
-      final isToday =
-          date.day == today.day &&
-          date.month == today.month &&
-          date.year == today.year;
-
-      currentWeek.add(
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              calendarNotifier.selectDate(date);
-              Navigator.of(ref.context).push(
-                MaterialPageRoute(
-                  builder: (context) => DayDetailsScreen(selectedDate: date),
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF007AFF)
-                    : isToday
-                    ? const Color(0xFF007AFF).withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  '$day',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isSelected || isToday
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: isSelected
-                        ? Colors.white
-                        : isToday
-                        ? const Color(0xFF007AFF)
-                        : const Color(0xFF1C1C1E),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      if ((startingWeekday + day - 1) % 7 == 0 || day == daysInMonth) {
-        // Fill remaining cells in last week
-        while (currentWeek.length < 7) {
-          currentWeek.add(const Expanded(child: SizedBox(height: 40)));
-        }
-        weeks.add(List.from(currentWeek));
-        currentWeek.clear();
-      }
-    }
-
-    // Build weeks
-    for (var week in weeks) {
-      days.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: week,
-          ),
-        ),
-      );
-    }
-
-    return Column(children: days);
-  }
-
   Widget _buildReminderCard(
     BuildContext context,
     WidgetRef ref,
@@ -461,14 +127,11 @@ class DashboardScreen extends ConsumerWidget {
     final historyNotifier = ref.read(reminderHistoryProvider.notifier);
     final today = DateTime.now();
 
-    // Find the next upcoming reminder (either due today and not completed, or next interval)
     NotificationReminder? nextReminder;
     DateTime? nextReminderDate;
 
     for (final reminder in reminders) {
       if (!reminder.enabled) continue;
-
-      // Check if due today and not completed
       if (reminder.isDueOn(today) && !reminder.isCompletedOn(today)) {
         nextReminder = reminder;
         nextReminderDate = today;
@@ -476,15 +139,10 @@ class DashboardScreen extends ConsumerWidget {
       }
     }
 
-    // If no reminder due today or all completed, find next closest interval
     if (nextReminder == null) {
-      DateTime closestDate = DateTime.now().add(
-        const Duration(days: 365),
-      ); // 1 year max
-
+      DateTime closestDate = DateTime.now().add(const Duration(days: 365));
       for (final reminder in reminders) {
         if (!reminder.enabled) continue;
-
         final nextDate = _findNextReminderDate(reminder, today);
         if (nextDate != null && nextDate.isBefore(closestDate)) {
           closestDate = nextDate;
@@ -500,8 +158,8 @@ class DashboardScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: hasReminder
           ? Row(
@@ -509,14 +167,10 @@ class DashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9500).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
-                    Icons.notifications_active,
-                    color: Color(0xFFFF9500),
-                    size: 20,
-                  ),
+                  child: const Icon(Icons.notifications_outlined, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -524,143 +178,69 @@ class DashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        nextReminderDate == today
-                            ? 'Next Reminder'
-                            : 'Upcoming Reminder',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1C1C1E),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
                         nextReminder.title,
                         style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF8E8E93),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        nextReminder.time.format(context),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8E8E93),
-                        ),
+                        '${nextReminderDate == today ? 'Today' : 'Upcoming'} • ${nextReminder.time.format(context)}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: nextReminderDate == today
-                      ? () {
-                          // Mark the reminder as completed for the next reminder date and go to Day Details.
-                          final reminder = nextReminder;
-                          if (reminder != null && nextReminderDate != null) {
-                            final completedReminder = reminder.completeOn(
-                              nextReminderDate,
-                            );
-                            ref
-                                .read(notificationRemindersProvider.notifier)
-                                .updateReminder(completedReminder);
-                            // Log history record
-                            final dateKey =
-                                '${nextReminderDate.year.toString().padLeft(4, '0')}-${nextReminderDate.month.toString().padLeft(2, '0')}-${nextReminderDate.day.toString().padLeft(2, '0')}';
-                            historyNotifier.add(
-                              ReminderHistoryRecord(
-                                id: '${reminder.id}-$dateKey',
-                                reminderId: reminder.id,
-                                title: reminder.title,
-                                time: reminder.time,
-                                dateKey: dateKey,
-                              ),
-                            );
-                            // Show snackbar confirmation
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "✓ Reminder '${reminder.title}' completed!",
-                                ),
-                                backgroundColor: const Color(0xFF32D74B),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: nextReminderDate == today
-                        ? const Color(0xFF007AFF)
-                        : const Color(0xFFD1D1D6),
-                    foregroundColor: nextReminderDate == today
-                        ? Colors.white
-                        : const Color(0xFF8E8E93),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                if (nextReminderDate == today)
+                  TextButton(
+                    onPressed: () {
+                      final reminder = nextReminder;
+                      if (reminder != null && nextReminderDate != null) {
+                        final completedReminder = reminder.completeOn(
+                          nextReminderDate,
+                        );
+                        ref
+                            .read(notificationRemindersProvider.notifier)
+                            .updateReminder(completedReminder);
+                        final dateKey =
+                            '${nextReminderDate.year.toString().padLeft(4, '0')}-${nextReminderDate.month.toString().padLeft(2, '0')}-${nextReminderDate.day.toString().padLeft(2, '0')}';
+                        historyNotifier.add(
+                          ReminderHistoryRecord(
+                            id: '${reminder.id}-$dateKey',
+                            reminderId: reminder.id,
+                            title: reminder.title,
+                            time: reminder.time,
+                            dateKey: dateKey,
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'Complete',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ),
               ],
             )
           : Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8E8E93).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_none,
-                    size: 20,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
+                const Icon(Icons.notifications_none, size: 20),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'No Upcoming Reminders',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1C1C1E),
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Stay on track with your health',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8E8E93),
-                        ),
-                      ),
-                    ],
-                  ),
+                const Text(
+                  'No reminders set',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
+                const Spacer(),
+                TextButton(
                   onPressed: () async {
                     final newReminder =
                         await showModalBottomSheet<NotificationReminder>(
                           context: context,
                           isScrollControlled: true,
-                          useSafeArea: true,
                           builder: (context) => const CreateReminderDialog(),
                         );
                     if (newReminder != null) {
@@ -669,23 +249,7 @@ class DashboardScreen extends ConsumerWidget {
                           .addReminder(newReminder);
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF007AFF),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text(
-                    'Add',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+                  child: const Text('Add'),
                 ),
               ],
             ),
@@ -701,8 +265,6 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     final connected = state.status?.isConnected == true;
     final isBusy = state.isLoading || state.isSelecting;
-    final isFitbitSelected = dataSourceConfig.type == DataSourceType.fitbit;
-
     final lastSyncValue = vendorLastSync.whenOrNull(data: (v) => v);
 
     return Container(
@@ -710,210 +272,73 @@ class DashboardScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isFitbitSelected
-              ? const Color(0xFF00B0B9)
-              : const Color(0xFFE5E5EA),
-          width: isFitbitSelected ? 2 : 1,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00B0B9).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.watch, color: Color(0xFF00B0B9)),
-              ),
+              const Icon(Icons.sync_outlined, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Vendor Integration',
+                      'Fitbit Sync',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Selected: ${dataSourceConfig.type.displayName}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                    if (lastSyncValue != null) ...[
-                      const SizedBox(height: 2),
+                    if (lastSyncValue != null)
                       Text(
-                        'Last sync: '
-                        '${DateFormat('MMM d, yyyy HH:mm').format(lastSyncValue)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8E8E93),
-                        ),
+                        'Synced ${DateFormat('MMM d, HH:mm').format(lastSyncValue)}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
-                    ],
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: connected
-                      ? const Color(0xFFE7F8EF)
-                      : const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(20),
+                  color: connected ? Colors.grey.shade100 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      connected ? Icons.check_circle : Icons.cancel,
-                      size: 16,
-                      color: connected
-                          ? const Color(0xFF32D74B)
-                          : const Color(0xFF8E8E93),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      connected ? 'Connected' : 'Not connected',
-                      style: TextStyle(
-                        color: connected
-                            ? const Color(0xFF1C1C1E)
-                            : const Color(0xFF8E8E93),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  connected ? 'Connected' : 'Disconnected',
+                  style: TextStyle(
+                    color: connected ? Colors.black : Colors.red,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: isBusy
-                      ? null
-                      : () async {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const VendorSelectionScreen(),
-                            ),
-                          );
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF007AFF),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(
-                    isBusy
-                        ? 'Loading…'
-                        : connected
-                        ? 'Manage'
-                        : 'Setup',
-                  ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: isBusy
+                  ? null
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const VendorSelectionScreen(),
+                        ),
+                      );
+                    },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.black),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConnectivityBanner(
-    AsyncValue<Map<String, dynamic>> healthStatus,
-    AppLocalizations l10n,
-  ) {
-    return healthStatus.when(
-      data: (status) {
-        final backendStatus = status['status']?.toString() ?? 'unknown';
-        final fhirStatus = (status['fhir']?['status'] ?? 'unknown').toString();
-        final error = status['error']?.toString();
-
-        final isOffline = error == 'offline';
-        final isTimeout = error == 'timeout';
-        final hasConnectionIssue =
-            isOffline || isTimeout || backendStatus == 'unreachable';
-        final isFhirUnavailable = fhirStatus != 'connected';
-
-        if (hasConnectionIssue) {
-          return _buildNoticeBanner(
-            icon: Icons.wifi_off,
-            color: const Color(0xFFFF3B30),
-            message: l10n.connectionIssueMessage,
-          );
-        }
-
-        if (isFhirUnavailable) {
-          return _buildNoticeBanner(
-            icon: Icons.sync_problem,
-            color: const Color(0xFFFF9500),
-            message: l10n.fhirUnavailableMessage,
-          );
-        }
-
-        return const SizedBox.shrink();
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => _buildNoticeBanner(
-        icon: Icons.wifi_off,
-        color: const Color(0xFFFF3B30),
-        message: l10n.connectionIssueMessage,
-      ),
-    );
-  }
-
-  Widget _buildNoticeBanner({
-    required IconData icon,
-    required Color color,
-    required String message,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFF1C1C1E),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
+              child: Text(isBusy ? 'Loading...' : 'Manage Integration'),
             ),
           ),
         ],
@@ -933,185 +358,93 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              l10n.healthStatistics,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1C1C1E),
-              ),
+            const Text(
+              'Health Overview',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            IconButton(
+            TextButton.icon(
               onPressed: () => _showActionsBottomSheet(context, l10n),
-              icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
-              tooltip: l10n.quickActions,
+              icon: const Icon(Icons.add, size: 18, color: Colors.black),
+              label: const Text(
+                'Add',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        Column(
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ObservationsHistoryScreen(),
-                  ),
-                );
-              },
-              child: _buildStatCard(
-                context,
-                title: l10n.vitalSigns,
-                value: latestObservationsState.when(
-                  data: (observations) => observations.length.toString(),
-                  loading: () => null,
-                  error: (_, __) => '0',
-                ),
-                subtitle: l10n.recorded,
-                icon: Icons.favorite,
-                color: const Color(0xFFFF3B30),
-                isLoading: latestObservationsState.isLoading,
-              ),
+        _buildSimplifiedStatCard(
+          context,
+          title: 'Observations',
+          value: latestObservationsState.when(
+            data: (obs) => obs.length.toString(),
+            loading: () => '...',
+            error: (_, __) => '0',
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ObservationsHistoryScreen(),
             ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ConditionsHistoryScreen(),
-                  ),
-                );
-              },
-              child: _buildStatCard(
-                context,
-                title: l10n.conditionsLabel,
-                value: latestConditionsState.when(
-                  data: (conditions) => conditions.length.toString(),
-                  loading: () => null,
-                  error: (_, __) => '0',
-                ),
-                subtitle: l10n.reported,
-                icon: Icons.report_problem,
-                color: const Color(0xFFFF9500),
-                isLoading: latestConditionsState.isLoading,
-              ),
-            ),
-          ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSimplifiedStatCard(
+          context,
+          title: 'Conditions',
+          value: latestConditionsState.when(
+            data: (cond) => cond.length.toString(),
+            loading: () => '...',
+            error: (_, __) => '0',
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ConditionsHistoryScreen()),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(
+  Widget _buildSimplifiedStatCard(
     BuildContext context, {
     required String title,
-    required String? value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required bool isLoading,
+    required String value,
+    required VoidCallback onTap,
   }) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
-            child: Icon(icon, color: color, size: 32),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
               children: [
                 Text(
-                  title,
+                  value,
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${value ?? '---'} $subtitle',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
               ],
             ),
-          ),
-          if (isLoading)
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  value ?? '0',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n.viewAll,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios, size: 10, color: color),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1211,6 +544,31 @@ class DashboardScreen extends ConsumerWidget {
         Icons.arrow_forward_ios,
         size: 16,
         color: Color(0xFF8E8E93),
+      ),
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: Colors.white, size: 18),
+          SizedBox(width: 10),
+          Text(
+            'Offline Mode - Using cached data',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

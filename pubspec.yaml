@@ -23,7 +23,6 @@ dependencies:
   workmanager: ^0.9.0
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
-  health: ^13.2.1
   flutter_secure_storage: ^9.2.2
   go_router: ^14.2.7
   pdf: ^3.10.7

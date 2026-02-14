@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -80,163 +80,127 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
 
                 // App Title
                 Text(
                   l10n.loginTitle,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1C1C1E),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
 
                 Text(
                   l10n.welcomeBack,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF8E8E93),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 48),
 
                 // Login Form
-                Container(
-                  padding: const EdgeInsets.all(24.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFFE5E5EA),
-                      width: 1,
-                    ),
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Email Field
-                        TextFormField(
-                          controller: _emailController,
-                          focusNode: _emailFocusNode,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: Validators.email,
-                          onFieldSubmitted: (_) {
-                            _passwordFocusNode.requestFocus();
-                          },
-                          decoration: InputDecoration(
-                            labelText: l10n.emailAddress,
-                            labelStyle: TextStyle(color: Colors.grey[600]),
-                            filled: true,
-                            fillColor: const Color(0xFFF2F2F7),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF007AFF),
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Email Field
+                      TextFormField(
+                        controller: _emailController,
+                        focusNode: _emailFocusNode,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        validator: Validators.email,
+                        onFieldSubmitted: (_) {
+                          _passwordFocusNode.requestFocus();
+                        },
+                        decoration: InputDecoration(
+                          labelText: l10n.emailAddress,
+                          labelStyle: TextStyle(color: Colors.grey[600]),
+                          border: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.black, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
-                        const SizedBox(height: 16),
+                      ),
+                      const SizedBox(height: 24),
 
-                        // Password Field
-                        TextFormField(
-                          controller: _passwordController,
-                          focusNode: _passwordFocusNode,
-                          obscureText: obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          validator: Validators.password,
-                          onFieldSubmitted: (_) => _handleLogin(),
-                          decoration: InputDecoration(
-                            labelText: l10n.password,
-                            labelStyle: TextStyle(color: Colors.grey[600]),
-                            filled: true,
-                            fillColor: const Color(0xFFF2F2F7),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: Colors.grey[600],
-                              ),
-                              onPressed: () {
-                                ref
-                                        .read(obscurePasswordProvider.notifier)
-                                        .state =
-                                    !obscurePassword;
-                              },
+                      // Password Field
+                      TextFormField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        obscureText: obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        validator: Validators.password,
+                        onFieldSubmitted: (_) => _handleLogin(),
+                        decoration: InputDecoration(
+                          labelText: l10n.password,
+                          labelStyle: TextStyle(color: Colors.grey[600]),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: Colors.black,
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF007AFF),
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
+                            onPressed: () {
+                              ref
+                                      .read(obscurePasswordProvider.notifier)
+                                      .state =
+                                  !obscurePassword;
+                            },
                           ),
+                          border: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.black, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
-                        const SizedBox(height: 24),
+                      ),
+                      const SizedBox(height: 40),
 
-                        // Login Button
-                        ElevatedButton(
-                          onPressed: authState.isLoading ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF007AFF),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
+                      // Login Button
+                      ElevatedButton(
+                        onPressed: authState.isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: authState.isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  l10n.logIn,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                          elevation: 0,
+                        ),
+                        child: authState.isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
                                   ),
                                 ),
-                        ),
-                      ],
-                    ),
+                              )
+                            : Text(
+                                l10n.logIn.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
                 ),
 

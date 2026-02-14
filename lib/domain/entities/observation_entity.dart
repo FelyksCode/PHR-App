@@ -149,8 +149,6 @@ enum ObservationCategory {
 enum DataSource {
   manual('manual', 'Manual Entry'),
   wearable('wearable', 'Wearable Device'),
-  healthKit('health_kit', 'HealthKit'),
-  healthConnect('health_connect', 'Health Connect'),
   vendor('vendor', 'Vendor Integration');
 
   const DataSource(this.name, this.displayName);

@@ -52,16 +52,16 @@ class SettingsScreen extends ConsumerWidget {
                         context,
                         title: 'Data Export',
                         subtitle: 'Export your health records',
-                        icon: Icons.download,
-                        color: const Color(0xFF007AFF),
+                        icon: Icons.download_outlined,
+                        color: Colors.black,
                         onTap: () => _exportData(context, ref),
                       ),
                       _buildSettingItem(
                         context,
                         title: 'Sync Settings',
                         subtitle: 'Configure automatic syncing',
-                        icon: Icons.sync,
-                        color: const Color(0xFF5856D6),
+                        icon: Icons.sync_rounded,
+                        color: Colors.black,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -74,8 +74,8 @@ class SettingsScreen extends ConsumerWidget {
                         context,
                         title: 'Wearable Sources',
                         subtitle: 'Manage Fitbit connection',
-                        icon: Icons.watch,
-                        color: const Color(0xFF00B0B9),
+                        icon: Icons.watch_outlined,
+                        color: Colors.black,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -95,8 +95,8 @@ class SettingsScreen extends ConsumerWidget {
                         context,
                         title: 'Health Reminders',
                         subtitle: 'Medication and checkup reminders',
-                        icon: Icons.notifications,
-                        color: const Color(0xFFFF9500),
+                        icon: Icons.notifications_none_rounded,
+                        color: Colors.black,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(

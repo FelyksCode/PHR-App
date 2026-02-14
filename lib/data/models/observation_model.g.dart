@@ -25,6 +25,20 @@ ObservationModel _$ObservationModelFromJson(Map<String, dynamic> json) =>
       notes: json['notes'] as String?,
     );
 
+Map<String, dynamic> _$ObservationModelToJson(ObservationModel instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'type': _$ObservationTypeEnumMap[instance.type]!,
+      'value': instance.value,
+      'unit': instance.unit,
+      'timestamp': instance.timestamp.toIso8601String(),
+      'category': _$ObservationCategoryEnumMap[instance.category]!,
+      'source': _$DataSourceEnumMap[instance.source]!,
+      'patientId': instance.patientId,
+      'deviceInfo': instance.deviceInfo,
+      'notes': instance.notes,
+    };
+
 const _$ObservationTypeEnumMap = {
   ObservationType.bodyWeight: 'bodyWeight',
   ObservationType.bodyHeight: 'bodyHeight',
@@ -35,6 +49,7 @@ const _$ObservationTypeEnumMap = {
   ObservationType.heartRate: 'heartRate',
   ObservationType.respiratoryRate: 'respiratoryRate',
   ObservationType.steps: 'steps',
+  ObservationType.caloriesBurned: 'caloriesBurned',
 };
 
 const _$ObservationCategoryEnumMap = {
@@ -47,7 +62,5 @@ const _$ObservationCategoryEnumMap = {
 const _$DataSourceEnumMap = {
   DataSource.manual: 'manual',
   DataSource.wearable: 'wearable',
-  DataSource.healthKit: 'healthKit',
-  DataSource.healthConnect: 'healthConnect',
   DataSource.vendor: 'vendor',
 };

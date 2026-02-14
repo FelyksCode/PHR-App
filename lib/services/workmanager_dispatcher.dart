@@ -6,9 +6,6 @@ import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
 import '../core/network/api_client.dart';
 import '../core/constants/api_constants.dart';
-import '../data/repositories/health_sync_repository_impl.dart';
-import '../domain/entities/health_sync_entity.dart';
-import '../domain/entities/observation_entity.dart';
 import '../services/api_service.dart';
 import '../core/utils/timezone_initializer.dart';
 import 'notification_service.dart';
@@ -102,7 +99,6 @@ void _initializeApiClient() {
 /// Handlers must be self-contained and work in background isolates
 class TaskRegistry {
   static final Map<String, TaskHandler> _handlers = {
-    'health_data_sync': _handleHealthDataSync,
     'vendor_fitbit_sync': _handleVendorFitbitSync,
   };
 
@@ -123,113 +119,6 @@ class TaskRegistry {
 /// Type definition for task handlers
 /// Handlers receive optional input data and return a success boolean
 typedef TaskHandler = Future<bool> Function(Map<String, dynamic>? inputData);
-
-/// Handler for health data sync task
-/// This is self-contained and does not depend on any UI state or providers
-Future<bool> _handleHealthDataSync(Map<String, dynamic>? inputData) async {
-  try {
-    debugPrint('[BG] Starting health data sync...');
-
-    // Create instances needed for sync
-    final apiService = ApiService();
-    final repository = HealthSyncRepositoryImpl(apiService);
-
-    // Get sync status
-    final syncStatus = await repository.getSyncStatus();
-
-    // Check if we have permitted data types
-    if (syncStatus.permittedDataTypes.isEmpty) {
-      debugPrint('[BG] No permitted data types for sync');
-      return true; // Return true as this is not an error condition
-    }
-
-    // Update to syncing status
-    await repository.updateSyncStatus(
-      syncStatus.copyWith(status: SyncStatus.syncing),
-    );
-
-    // Check permissions
-    final hasPermissions = await repository.hasPermissions(
-      syncStatus.permittedDataTypes,
-    );
-
-    if (!hasPermissions) {
-      debugPrint('[BG] Missing health data permissions');
-      await repository.updateSyncStatus(
-        syncStatus.copyWith(
-          status: SyncStatus.permissionDenied,
-          errorMessage: 'Health data permissions not granted',
-        ),
-      );
-      return true; // Return true as this is not an error, just a state
-    }
-
-    // Get health data since last sync
-    final startDate =
-        syncStatus.lastSyncTime ??
-        DateTime.now().subtract(const Duration(days: 7));
-
-    final healthData = await repository.getHealthData(
-      dataTypes: syncStatus.permittedDataTypes,
-      startDate: startDate,
-      endDate: DateTime.now(),
-    );
-
-    if (healthData.isEmpty) {
-      debugPrint('[BG] No new health data to sync');
-      await repository.updateSyncStatus(
-        syncStatus.copyWith(
-          status: SyncStatus.noData,
-          lastSyncTime: DateTime.now(),
-        ),
-      );
-      return true;
-    }
-
-    // Convert to observations and submit
-    final observations = repository.convertToObservations(
-      healthData,
-      DataSource.healthConnect,
-    );
-
-    final success = await repository.submitSyncedObservations(observations);
-
-    if (success) {
-      await repository.updateSyncStatus(
-        syncStatus.copyWith(
-          status: SyncStatus.success,
-          lastSyncTime: DateTime.now(),
-          totalSyncedObservations:
-              syncStatus.totalSyncedObservations + observations.length,
-          errorMessage: null,
-        ),
-      );
-      debugPrint('[BG] Synced ${observations.length} observations');
-      return true;
-    } else {
-      await repository.updateSyncStatus(
-        syncStatus.copyWith(
-          status: SyncStatus.failed,
-          errorMessage: 'Failed to submit observations to backend',
-        ),
-      );
-      return false;
-    }
-  } catch (e, st) {
-    debugPrint('[BG] Health sync error: $e');
-    AppErrorLogger.logError(
-      UnknownError(
-        'Health data sync failed in background',
-        code: 'BG_HEALTH_SYNC_ERROR',
-        stackTrace: st,
-        originalException: e,
-      ),
-      source: '_handleHealthDataSync',
-      severity: ErrorSeverity.medium,
-    );
-    return false;
-  }
-}
 
 /// Handler for vendor (Fitbit) sync task
 /// This is self-contained and does not depend on any UI state or providers

@@ -65,11 +65,8 @@ class _ObservationDetailScreenState
     final detailState = ref.read(observationDetailProvider);
     final now = DateTime.now();
     final DateTime cutoffDate = switch (detailState.selectedPeriod) {
-      // Today: from start of current day
       TimePeriod.hours24 => DateTime(now.year, now.month, now.day),
-      // Last 7 days (rolling)
       TimePeriod.days7 => now.subtract(const Duration(days: 7)),
-      // This month: from first day of current month
       TimePeriod.days30 => DateTime(now.year, now.month, 1),
     };
 
@@ -87,18 +84,13 @@ class _ObservationDetailScreenState
   List<FlSpot> _generateChartData(List<Map<String, dynamic>> filteredObs) {
     if (filteredObs.isEmpty) return [];
 
-    // Sort by date
     final sorted = List<Map<String, dynamic>>.from(filteredObs)
       ..sort((a, b) {
         final dateA =
-            DateTime.tryParse(
-              a['effectiveDateTime'] as String? ?? '',
-            )?.toLocal() ??
+            DateTime.tryParse(a['effectiveDateTime'] as String? ?? '')?.toLocal() ??
             DateTime.now();
         final dateB =
-            DateTime.tryParse(
-              b['effectiveDateTime'] as String? ?? '',
-            )?.toLocal() ??
+            DateTime.tryParse(b['effectiveDateTime'] as String? ?? '')?.toLocal() ??
             DateTime.now();
         return dateA.compareTo(dateB);
       });
@@ -131,10 +123,8 @@ class _ObservationDetailScreenState
           DateTime.tryParse(dateStr)?.toLocal() ??
           DateTime.fromMillisecondsSinceEpoch(0);
 
-      // Handle FHIR panel format with components
       final components = obs['component'] as List<dynamic>?;
       if (components != null && components.isNotEmpty) {
-        // This is a blood pressure panel observation
         final entry = grouped.putIfAbsent(
           dateStr,
           () => {
@@ -151,7 +141,6 @@ class _ObservationDetailScreenState
           },
         );
 
-        // Extract systolic and diastolic from components
         for (final component in components) {
           final code = component['code'] as Map<String, dynamic>?;
           final coding = code?['coding'] as List<dynamic>?;
@@ -163,10 +152,8 @@ class _ObservationDetailScreenState
             final value = valueQuantity?['value'];
 
             if (loincCode == '8480-6') {
-              // Systolic
               entry['systolic'] ??= _toDouble(value);
             } else if (loincCode == '8462-4') {
-              // Diastolic
               entry['diastolic'] ??= _toDouble(value);
             }
           }
@@ -174,7 +161,6 @@ class _ObservationDetailScreenState
         continue;
       }
 
-      // Handle legacy format with separate systolic/diastolic observations
       final type = (obs['type'] as String? ?? '').toLowerCase();
       final isSystolic = type.contains('systolic');
       final isDiastolic = type.contains('diastolic');
@@ -198,9 +184,6 @@ class _ObservationDetailScreenState
       if (isDiastolic) {
         entry['diastolic'] ??= _toDouble(obs['value']);
       }
-
-      entry['unit'] ??= obs['unit'];
-      entry['notes'] ??= obs['notes'];
     }
 
     final groupedList = grouped.values.toList();
@@ -208,15 +191,6 @@ class _ObservationDetailScreenState
       (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
     );
     return groupedList;
-  }
-
-  String _getChartTitle() {
-    final detailState = ref.read(observationDetailProvider);
-    return switch (detailState.selectedPeriod) {
-      TimePeriod.hours24 => 'Today',
-      TimePeriod.days7 => 'Last 7 Days',
-      TimePeriod.days30 => 'This Month',
-    };
   }
 
   @override
@@ -233,36 +207,27 @@ class _ObservationDetailScreenState
         isTodayPeriod && filteredObservations.length == 1;
 
     List<Map<String, dynamic>> sortedObservations;
-    int totalItems;
-    int displayedItems;
-    List<Map<String, dynamic>> paginatedObservations;
-    bool hasMore;
-
     if (_isBloodPressure) {
       sortedObservations = _groupBloodPressureHistory(filteredObservations);
     } else {
       sortedObservations = List<Map<String, dynamic>>.from(filteredObservations)
         ..sort((a, b) {
           final dateA =
-              DateTime.tryParse(
-                a['effectiveDateTime'] as String? ?? '',
-              )?.toLocal() ??
+              DateTime.tryParse(a['effectiveDateTime'] as String? ?? '')?.toLocal() ??
               DateTime.now();
           final dateB =
-              DateTime.tryParse(
-                b['effectiveDateTime'] as String? ?? '',
-              )?.toLocal() ??
+              DateTime.tryParse(b['effectiveDateTime'] as String? ?? '')?.toLocal() ??
               DateTime.now();
           return dateB.compareTo(dateA);
         });
     }
 
-    totalItems = sortedObservations.length;
-    displayedItems = (detailState.currentPage * _itemsPerPage)
+    final totalItems = sortedObservations.length;
+    final displayedItems = (detailState.currentPage * _itemsPerPage)
         .clamp(0, totalItems)
         .toInt();
-    paginatedObservations = sortedObservations.take(displayedItems).toList();
-    hasMore = displayedItems < totalItems;
+    final paginatedObservations = sortedObservations.take(displayedItems).toList();
+    final hasMore = displayedItems < totalItems;
 
     final latestObs = sortedObservations.isNotEmpty
         ? sortedObservations.first
@@ -271,65 +236,53 @@ class _ObservationDetailScreenState
         ? <FlSpot>[]
         : _generateChartData(filteredObservations);
 
-    // Build BP chart series from grouped observations (systolic/diastolic values)
     final systolicSeries = _isBloodPressure
         ? sortedObservations
               .where((e) => e['systolic'] != null)
-              .map(
-                (e) => {
-                  'value': e['systolic'],
-                  'effectiveDateTime': e['effectiveDateTime'],
-                },
-              )
+              .map((e) => {'value': e['systolic'], 'effectiveDateTime': e['effectiveDateTime']})
               .toList()
         : <Map<String, dynamic>>[];
     final diastolicSeries = _isBloodPressure
         ? sortedObservations
               .where((e) => e['diastolic'] != null)
-              .map(
-                (e) => {
-                  'value': e['diastolic'],
-                  'effectiveDateTime': e['effectiveDateTime'],
-                },
-              )
+              .map((e) => {'value': e['diastolic'], 'effectiveDateTime': e['effectiveDateTime']})
               .toList()
         : <Map<String, dynamic>>[];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           appBarTitle,
           style: const TextStyle(
-            color: Color(0xFF1C1C1E),
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: false,
         actions: [
           IconButton(
             onPressed: _openVitalSignBottomSheet,
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_rounded, color: Colors.black),
             tooltip: 'Add Measurement',
           ),
-          const SizedBox(width: 4),
         ],
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (latestObs != null) _buildStatsCard(latestObs),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildPeriodSelector(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             if (hasSingleTodayRecord)
               _buildSingleDataInfoCard(sortedObservations.first)
             else if (_isBloodPressure)
@@ -338,7 +291,7 @@ class _ObservationDetailScreenState
               _buildChartCard(chartData)
             else
               _buildEmptyChartCard(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildObservationsList(
               paginatedObservations,
               hasMore,
@@ -354,16 +307,15 @@ class _ObservationDetailScreenState
   Widget _buildPeriodSelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
           _buildPeriodButton(TimePeriod.hours24, 'Today'),
-          _buildPeriodButton(TimePeriod.days7, '7 days'),
-          _buildPeriodButton(TimePeriod.days30, 'This month'),
+          _buildPeriodButton(TimePeriod.days7, 'Week'),
+          _buildPeriodButton(TimePeriod.days30, 'Month'),
         ],
       ),
     );
@@ -379,18 +331,18 @@ class _ObservationDetailScreenState
           detailNotifier.setPeriod(period);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF007AFF) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            color: isSelected ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : const Color(0xFF8E8E93),
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : Colors.grey[600],
               ),
             ),
           ),
@@ -400,15 +352,10 @@ class _ObservationDetailScreenState
   }
 
   Widget _buildChartCard(List<FlSpot> chartData) {
-    // Calculate min and max for better chart scaling
     final values = chartData.map((spot) => spot.y).toList();
-    final minValue = values.isEmpty
-        ? 0.0
-        : values.reduce((a, b) => a < b ? a : b);
-    final maxValue = values.isEmpty
-        ? 100.0
-        : values.reduce((a, b) => a > b ? a : b);
-    final padding = (maxValue - minValue) * 0.1;
+    final minValue = values.isEmpty ? 0.0 : values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.isEmpty ? 100.0 : values.reduce((a, b) => a > b ? a : b);
+    final padding = (maxValue - minValue) * 0.15;
     final minY = (minValue - padding).clamp(0.0, minValue);
     final maxY = maxValue + padding;
 
@@ -416,23 +363,19 @@ class _ObservationDetailScreenState
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Trend Chart - ${_getChartTitle()}',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1C1E),
-            ),
+          const Text(
+            'Trend',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           SizedBox(
-            height: 280,
+            height: 200,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
@@ -444,87 +387,38 @@ class _ObservationDetailScreenState
                     barRods: [
                       BarChartRodData(
                         toY: entry.value.y,
-                        color: const Color(0xFF007AFF),
-                        width: 8,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
+                        color: Colors.black,
+                        width: 12,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
                       ),
                     ],
-                    showingTooltipIndicators: [],
                   );
                 }).toList(),
                 titlesData: FlTitlesData(
                   show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index >= 0 && index < chartData.length) {
-                          final obs = _getFilteredObservations();
-                          obs.sort((a, b) {
-                            final dateA =
-                                DateTime.tryParse(
-                                  a['effectiveDateTime'] as String? ?? '',
-                                )?.toLocal() ??
-                                DateTime.now();
-                            final dateB =
-                                DateTime.tryParse(
-                                  b['effectiveDateTime'] as String? ?? '',
-                                )?.toLocal() ??
-                                DateTime.now();
-                            return dateA.compareTo(dateB);
-                          });
-                          if (index < obs.length) {
-                            final detailState = ref.read(
-                              observationDetailProvider,
-                            );
-                            final dateTime =
-                                DateTime.tryParse(
-                                  obs[index]['effectiveDateTime'] as String? ??
-                                      '',
-                                )?.toLocal() ??
-                                DateTime.now();
-                            final dateFormat =
-                                detailState.selectedPeriod == TimePeriod.hours24
-                                ? DateFormat('HH:mm')
-                                : DateFormat('MM/dd');
-                            return Text(
-                              dateFormat.format(dateTime),
-                              style: const TextStyle(fontSize: 10),
-                            );
-                          }
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
+                  bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toStringAsFixed(0),
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
-                      reservedSize: 40,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toStringAsFixed(0),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      ),
                     ),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.shade100,
+                    strokeWidth: 1,
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                gridData: const FlGridData(
-                  show: true,
-                  drawHorizontalLine: true,
-                  drawVerticalLine: false,
-                ),
               ),
             ),
           ),
@@ -539,168 +433,87 @@ class _ObservationDetailScreenState
   ) {
     final systolicSpots = _generateChartData(systolic);
     final diastolicSpots = _generateChartData(diastolic);
+    if (systolicSpots.isEmpty && diastolicSpots.isEmpty) return _buildEmptyChartCard();
 
-    if (systolicSpots.isEmpty && diastolicSpots.isEmpty) {
-      return _buildEmptyChartCard();
-    }
-
-    final allValues = [
-      ...systolicSpots.map((e) => e.y),
-      ...diastolicSpots.map((e) => e.y),
-    ];
-    final minValue = allValues.isEmpty
-        ? 0.0
-        : allValues.reduce((a, b) => a < b ? a : b);
-    final maxValue = allValues.isEmpty
-        ? 100.0
-        : allValues.reduce((a, b) => a > b ? a : b);
-    final padding = (maxValue - minValue) * 0.1;
+    final allValues = [...systolicSpots.map((e) => e.y), ...diastolicSpots.map((e) => e.y)];
+    final minValue = allValues.isEmpty ? 0.0 : allValues.reduce((a, b) => a < b ? a : b);
+    final maxValue = allValues.isEmpty ? 100.0 : allValues.reduce((a, b) => a > b ? a : b);
+    final padding = (maxValue - minValue) * 0.15;
     final minY = (minValue - padding).clamp(0.0, minValue);
     final maxY = maxValue + padding;
 
-    List<FlSpot> normalize(List<FlSpot> spots) {
-      // Ensure x is sequential for display
-      return spots
-          .asMap()
-          .entries
-          .map((e) => FlSpot(e.key.toDouble(), e.value.y))
-          .toList();
-    }
-
-    final systolicNorm = normalize(systolicSpots);
-    final diastolicNorm = normalize(diastolicSpots);
+    List<FlSpot> normalize(List<FlSpot> spots) =>
+        spots.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.y)).toList();
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Blood Pressure - ${_getChartTitle()}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 4,
+              const Text('Trend', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              Row(
                 children: [
-                  _legendEntry(const Color(0xFF007AFF), 'Systolic'),
-                  _legendEntry(const Color(0xFFFF3B30), 'Diastolic'),
+                  _legendEntry(Colors.black, 'Sys'),
+                  const SizedBox(width: 12),
+                  _legendEntry(Colors.grey, 'Dia'),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           SizedBox(
-            height: 280,
+            height: 200,
             child: LineChart(
               LineChartData(
                 minY: minY,
                 maxY: maxY,
                 titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 32,
-                      getTitlesWidget: (value, meta) {
-                        final idx = value.toInt();
-                        final obs = _getFilteredObservations();
-                        obs.sort((a, b) {
-                          final dateA =
-                              DateTime.tryParse(
-                                a['effectiveDateTime'] as String? ?? '',
-                              )?.toLocal() ??
-                              DateTime.now();
-                          final dateB =
-                              DateTime.tryParse(
-                                b['effectiveDateTime'] as String? ?? '',
-                              )?.toLocal() ??
-                              DateTime.now();
-                          return dateA.compareTo(dateB);
-                        });
-                        if (idx >= 0 && idx < obs.length) {
-                          final detailState = ref.read(
-                            observationDetailProvider,
-                          );
-                          final dateTime =
-                              DateTime.tryParse(
-                                obs[idx]['effectiveDateTime'] as String? ?? '',
-                              )?.toLocal() ??
-                              DateTime.now();
-                          final dateFormat =
-                              detailState.selectedPeriod == TimePeriod.hours24
-                              ? DateFormat('HH:mm')
-                              : DateFormat('MM/dd');
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              dateFormat.format(dateTime),
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
+                  bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toStringAsFixed(0),
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toStringAsFixed(0),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      ),
                     ),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
-                gridData: const FlGridData(
+                gridData: FlGridData(
                   show: true,
-                  drawHorizontalLine: true,
                   drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.shade100,
+                    strokeWidth: 1,
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
-                  if (systolicNorm.isNotEmpty)
-                    LineChartBarData(
-                      spots: systolicNorm,
-                      isCurved: true,
-                      color: const Color(0xFF007AFF),
-                      barWidth: 3,
-                      dotData: const FlDotData(show: false),
-                    ),
-                  if (diastolicNorm.isNotEmpty)
-                    LineChartBarData(
-                      spots: diastolicNorm,
-                      isCurved: true,
-                      color: const Color(0xFFFF3B30),
-                      barWidth: 3,
-                      dotData: const FlDotData(show: false),
-                    ),
+                  LineChartBarData(
+                    spots: normalize(systolicSpots),
+                    isCurved: true,
+                    color: Colors.black,
+                    barWidth: 2.5,
+                    dotData: const FlDotData(show: false),
+                  ),
+                  LineChartBarData(
+                    spots: normalize(diastolicSpots),
+                    isCurved: true,
+                    color: Colors.grey[400],
+                    barWidth: 2.5,
+                    dotData: const FlDotData(show: false),
+                  ),
                 ],
               ),
             ),
@@ -725,7 +538,7 @@ class _ObservationDetailScreenState
         const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF1C1C1E)),
+          style: const TextStyle(fontSize: 12, color: Colors.black),
         ),
       ],
     );
@@ -734,21 +547,21 @@ class _ObservationDetailScreenState
   Widget _buildEmptyChartCard() {
     return Container(
       padding: const EdgeInsets.all(40),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(Icons.show_chart, color: Colors.grey[600], size: 48),
+          Icon(Icons.analytics_outlined, color: Colors.grey[300], size: 32),
           const SizedBox(height: 12),
-          const Text(
-            'No data for this period',
+          Text(
+            'No data available',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF8E8E93),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[400],
             ),
           ),
         ],
@@ -757,161 +570,48 @@ class _ObservationDetailScreenState
   }
 
   Widget _buildSingleDataInfoCard(Map<String, dynamic> obs) {
-    final effectiveDateTime = obs['effectiveDateTime'] as String?;
-    final dateTime = effectiveDateTime != null
-        ? DateTime.tryParse(effectiveDateTime)?.toLocal() ?? DateTime.now()
-        : DateTime.now();
-
-    if (_isBloodPressure) {
-      final systolic = obs['systolic'];
-      final diastolic = obs['diastolic'];
-      final unit = obs['unit'] as String? ?? 'mmHg';
-
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Today\'s only measurement',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF8E8E93),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${systolic ?? '--'} / ${diastolic ?? '--'}',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  unit,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Color(0xFF8E8E93),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Charts are shown when there are at least two measurements in the selected period.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final value = obs['value'];
-    final unit = obs['unit'] as String?;
-    final notes = obs['notes'] as String?;
+    final dateTime = DateTime.tryParse(obs['effectiveDateTime'] as String? ?? '')?.toLocal() ?? DateTime.now();
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Today\'s only measurement',
+          Text(
+            'Today\'s Entry'.toUpperCase(),
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF8E8E93),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey[500],
+              letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (value != null) ...[
-                Text(
-                  '$value',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                if (unit != null) ...[
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      unit,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+              Text(
+                _isBloodPressure
+                    ? '${obs['systolic'] ?? '--'} / ${obs['diastolic'] ?? '--'}'
+                    : '${obs['value'] ?? '--'}',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                (obs['unit'] as String?) ?? '',
+                style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.access_time, size: 16, color: Color(0xFF8E8E93)),
-              const SizedBox(width: 8),
-              Text(
-                DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
-                style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
-              ),
-            ],
-          ),
-          if (notes != null && notes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              notes,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF1C1C1E),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          const Text(
-            'Charts are shown when there are at least two measurements in the selected period.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+          Text(
+            DateFormat('hh:mm a').format(dateTime),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -919,159 +619,55 @@ class _ObservationDetailScreenState
   }
 
   Widget _buildStatsCard(Map<String, dynamic> latestObs) {
-    if (_isBloodPressure) {
-      // Use grouped latest observation (with systolic/diastolic fields)
-      final latestDate =
-          DateTime.tryParse(
-            latestObs['effectiveDateTime'] as String? ?? '',
-          )?.toLocal() ??
-          DateTime.now();
-
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Latest Reading',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF8E8E93),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${latestObs['systolic'] ?? '--'} / ${latestObs['diastolic'] ?? '--'}',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  latestObs['unit'] as String? ?? 'mmHg',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: const Color(0xFF8E8E93),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('MMM dd, yyyy • hh:mm a').format(latestDate),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    final effectiveDateTime = latestObs['effectiveDateTime'] as String?;
-    final dateTime = effectiveDateTime != null
-        ? DateTime.tryParse(effectiveDateTime)?.toLocal() ?? DateTime.now()
-        : DateTime.now();
+    final latestDate = DateTime.tryParse(latestObs['effectiveDateTime'] as String? ?? '')?.toLocal() ?? DateTime.now();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Latest Reading',
+          Text(
+            'Latest Reading'.toUpperCase(),
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF8E8E93),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey[400],
+              letterSpacing: 1.2,
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (latestObs['value'] != null) ...[
-                Text(
-                  '${latestObs['value']}',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                if (latestObs['unit'] != null) ...[
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      latestObs['unit'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ],
           ),
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(Icons.access_time, size: 16, color: const Color(0xFF8E8E93)),
-              const SizedBox(width: 8),
               Text(
-                DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime),
-                style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
+                _isBloodPressure
+                    ? '${latestObs['systolic'] ?? '--'} / ${latestObs['diastolic'] ?? '--'}'
+                    : '${latestObs['value'] ?? '--'}',
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  (latestObs['unit'] as String?) ?? '',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                ),
               ),
             ],
           ),
-          if (latestObs['notes'] != null &&
-              (latestObs['notes'] as String).isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF007AFF).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                latestObs['notes'] as String,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF1C1C1E),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ],
+          const SizedBox(height: 16),
+          Text(
+            DateFormat('MMMM dd, yyyy • hh:mm a').format(latestDate),
+            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+          ),
         ],
       ),
     );
@@ -1083,176 +679,79 @@ class _ObservationDetailScreenState
     int totalItems,
     int displayedItems,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                const Icon(Icons.history, color: Color(0xFF007AFF)),
-                const SizedBox(width: 8),
-                Text(
-                  'History ($totalItems)',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                if (hasMore) ...[
-                  const Spacer(),
-                  Text(
-                    'Showing $displayedItems of $totalItems',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (observations.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.grey[600], size: 48),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'No records found',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            ...observations.map((obs) {
-              final effectiveDateTime = obs['effectiveDateTime'] as String?;
-              final dateTime = effectiveDateTime != null
-                  ? DateTime.tryParse(effectiveDateTime)?.toLocal() ??
-                        DateTime.now()
-                  : DateTime.now();
-
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                title: Text(
-                  DateFormat('MMM dd, yyyy').format(dateTime),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat('hh:mm a').format(dateTime),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                    if (obs['notes'] != null &&
-                        (obs['notes'] as String).isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        obs['notes'] as String,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8E8E93),
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-                trailing: _isBloodPressure
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${obs['systolic'] ?? '--'} / ${obs['diastolic'] ?? '--'}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1C1C1E),
-                            ),
-                          ),
-                          Text(
-                            (obs['unit'] as String?) ?? 'mmHg',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF8E8E93),
-                            ),
-                          ),
-                        ],
-                      )
-                    : (obs['value'] != null
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '${obs['value']}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1C1C1E),
-                                  ),
-                                ),
-                                if (obs['unit'] != null)
-                                  Text(
-                                    obs['unit'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF8E8E93),
-                                    ),
-                                  ),
-                              ],
-                            )
-                          : null),
-              );
-            }),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             if (hasMore)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Center(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(observationDetailProvider.notifier)
-                          .incrementPage();
-                    },
-                    icon: const Icon(Icons.expand_more),
-                    label: const Text('Load More'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF007AFF),
-                    ),
-                  ),
-                ),
+              Text(
+                'Showing $displayedItems of $totalItems',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
           ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        if (observations.isEmpty)
+          const Center(child: Text('No records found', style: TextStyle(color: Colors.grey)))
+        else
+          ...observations.map((obs) {
+            final dateTime = DateTime.tryParse(obs['effectiveDateTime'] as String? ?? '')?.toLocal() ?? DateTime.now();
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade100),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('MMM dd, yyyy').format(dateTime),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        Text(
+                          DateFormat('hh:mm a').format(dateTime),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _isBloodPressure
+                            ? '${obs['systolic'] ?? '--'} / ${obs['diastolic'] ?? '--'}'
+                            : '${obs['value'] ?? '--'}',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                      Text(
+                        (obs['unit'] as String?) ?? '',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        if (hasMore)
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => ref.read(observationDetailProvider.notifier).incrementPage(),
+              child: const Text('Load More', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1261,7 +760,6 @@ class _ObservationDetailScreenState
     final unit = widget.observationType.standardUnit;
     final observationType = widget.observationType;
 
-    // Use unified BloodPressureForm for blood pressure
     if (observationType == ObservationType.bloodPressureSystolic ||
         observationType == ObservationType.bloodPressureDiastolic) {
       showModalBottomSheet(
@@ -1279,7 +777,6 @@ class _ObservationDetailScreenState
       return;
     }
 
-    // Standard form for other observation types
     final valueController = TextEditingController();
     final notesController = TextEditingController();
 
@@ -1287,190 +784,59 @@ class _ObservationDetailScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFAFAFA),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE5E5EA),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF007AFF).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _getIcon(widget.observationType),
-                            style: const TextStyle(fontSize: 28),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1C1C1E),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Record a new measurement',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF8E8E93),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Color(0xFF8E8E93)),
-                      ),
-                    ],
-                  ),
-                ),
-                // Content
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        // Manual entry section
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE5E5EA)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Enter Reading',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1C1C1E),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              CustomTextField(
-                                label: '$title ($unit)',
-                                controller: valueController,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d*'),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              CustomTextField(
-                                label: 'Notes (Optional)',
-                                controller: notesController,
-                                maxLines: 3,
-                                hint:
-                                    'Add any additional notes about this reading...',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: () => _submitSingleObservation(
-                              title,
-                              observationType,
-                              valueController,
-                              notesController,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF007AFF),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text('Submit $title'),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
+                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 32),
+            CustomTextField(
+              label: 'Value ($unit)',
+              controller: valueController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            ),
+            const SizedBox(height: 24),
+            CustomTextField(
+              label: 'Notes',
+              controller: notesController,
+              maxLines: 2,
+              hint: 'Optional notes',
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _submitSingleObservation(
+                  title,
+                  observationType,
+                  valueController,
+                  notesController,
+                ),
+                child: Text('Save Measurement'.toUpperCase()),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  String _getIcon(ObservationType type) {
-    switch (type) {
-      case ObservationType.bodyWeight:
-        return '⚖️';
-      case ObservationType.bodyHeight:
-        return '📏';
-      case ObservationType.bodyTemperature:
-        return '🌡️';
-      case ObservationType.heartRate:
-        return '❤️';
-      case ObservationType.bloodPressureSystolic:
-      case ObservationType.bloodPressureDiastolic:
-        return '🩸';
-      case ObservationType.oxygenSaturation:
-        return '🫁';
-      case ObservationType.respiratoryRate:
-        return '💨';
-      case ObservationType.steps:
-        return '👣';
-      case ObservationType.caloriesBurned:
-        return '🔥';
-    }
-  }
-
-  /// Submits blood pressure as two separate FHIR-compliant observations
-  /// Submits blood pressure as a single FHIR panel observation with components
   Future<void> _submitBloodPressure(
     double systolic,
     double diastolic,
@@ -1480,12 +846,9 @@ class _ObservationDetailScreenState
       final observationService = ref.read(observationServiceProvider);
       final queueService = ref.read(offlineQueueServiceProvider);
 
-      // Check internet connectivity
       bool hasInternet = false;
       try {
-        final result = await InternetAddress.lookup(
-          '8.8.8.8',
-        ).timeout(const Duration(seconds: 2));
+        final result = await InternetAddress.lookup('8.8.8.8').timeout(const Duration(seconds: 2));
         hasInternet = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       } catch (_) {
         hasInternet = false;
@@ -1495,8 +858,7 @@ class _ObservationDetailScreenState
 
       if (hasInternet) {
         try {
-          final success = await observationService
-              .submitBloodPressurePanelObservation(
+          final success = await observationService.submitBloodPressurePanelObservation(
                 systolic: systolic,
                 diastolic: diastolic,
                 notes: notes,
@@ -1507,9 +869,7 @@ class _ObservationDetailScreenState
           if (success) {
             ref.invalidate(latestObservationsProvider);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Blood Pressure recorded successfully'),
-              ),
+              const SnackBar(content: Text('Blood Pressure recorded successfully')),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1517,7 +877,6 @@ class _ObservationDetailScreenState
             );
           }
         } catch (e) {
-          // Queue the observations on error
           final timestamp = DateTime.now();
           final systolicObs = ObservationModel.create(
             type: ObservationType.bloodPressureSystolic,
@@ -1540,15 +899,10 @@ class _ObservationDetailScreenState
           ref.invalidate(queuedObservationsProvider);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Blood Pressure saved offline. Will sync when online.',
-              ),
-            ),
+            const SnackBar(content: Text('Blood Pressure saved offline. Will sync when online.')),
           );
         }
       } else {
-        // No internet - queue the observations
         final timestamp = DateTime.now();
         final systolicObs = ObservationModel.create(
           type: ObservationType.bloodPressureSystolic,
@@ -1571,11 +925,7 @@ class _ObservationDetailScreenState
         ref.invalidate(queuedObservationsProvider);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Blood Pressure saved offline. Will sync when online.',
-            ),
-          ),
+          const SnackBar(content: Text('Blood Pressure saved offline. Will sync when online.')),
         );
       }
 
@@ -1584,14 +934,11 @@ class _ObservationDetailScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
 
-  /// Submits a single observation (non-blood pressure)
   Future<void> _submitSingleObservation(
     String title,
     ObservationType observationType,
@@ -1604,13 +951,10 @@ class _ObservationDetailScreenState
 
       if (value.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Please enter a value')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a value')));
         return;
       }
 
-      // Create single observation
       final observation = ObservationModel.create(
         type: observationType,
         value: double.tryParse(value) ?? 0.0,
@@ -1622,12 +966,9 @@ class _ObservationDetailScreenState
       final observationService = ref.read(observationServiceProvider);
       final queueService = ref.read(offlineQueueServiceProvider);
 
-      // Check internet connectivity
       bool hasInternet = false;
       try {
-        final result = await InternetAddress.lookup(
-          '8.8.8.8',
-        ).timeout(const Duration(seconds: 2));
+        final result = await InternetAddress.lookup('8.8.8.8').timeout(const Duration(seconds: 2));
         hasInternet = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       } catch (_) {
         hasInternet = false;
@@ -1637,13 +978,10 @@ class _ObservationDetailScreenState
 
       if (hasInternet) {
         try {
-          final success = await observationService.submitObservation(
-            observation,
-          );
+          final success = await observationService.submitObservation(observation);
           if (!mounted) return;
 
           if (success) {
-            // Add to local observations list
             _observations.insert(0, {
               'effectiveDateTime': observation.timestamp.toIso8601String(),
               'value': observation.value,
@@ -1655,36 +993,27 @@ class _ObservationDetailScreenState
               SnackBar(content: Text('$title submitted successfully')),
             );
           } else {
-            // Queue for later sync
             await queueService.queueObservation(observation);
             ref.invalidate(queuedObservationsProvider);
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('$title saved offline. Will sync when online.'),
-              ),
+              SnackBar(content: Text('$title saved offline. Will sync when online.')),
             );
           }
         } catch (e) {
-          // Queue the data
           await queueService.queueObservation(observation);
           ref.invalidate(queuedObservationsProvider);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$title saved offline. Will sync when online.'),
-            ),
+            SnackBar(content: Text('$title saved offline. Will sync when online.')),
           );
         }
       } else {
-        // No internet - queue directly
         await queueService.queueObservation(observation);
         ref.invalidate(queuedObservationsProvider);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$title saved offline. Will sync when online.'),
-          ),
+          SnackBar(content: Text('$title saved offline. Will sync when online.')),
         );
       }
 
@@ -1694,9 +1023,7 @@ class _ObservationDetailScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }

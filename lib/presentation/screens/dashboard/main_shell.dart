@@ -21,15 +21,21 @@ class MainShell extends ConsumerWidget {
         onTap: (index) =>
             ref.read(mainShellIndexProvider.notifier).state = index,
         type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.dashboard_outlined),
-            activeIcon: const Icon(Icons.dashboard),
+            icon: const Icon(Icons.grid_view_outlined),
+            activeIcon: const Icon(Icons.grid_view_rounded),
             label: l10n.home,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.notifications_none),
-            activeIcon: const Icon(Icons.notifications),
+            icon: const Icon(Icons.notifications_none_rounded),
+            activeIcon: const Icon(Icons.notifications_rounded),
             label: l10n.notifications,
           ),
         ],

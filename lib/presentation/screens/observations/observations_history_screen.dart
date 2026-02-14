@@ -23,18 +23,18 @@ class _ObservationsHistoryScreenState
     final queuedObservationsState = ref.watch(queuedObservationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'Vital Signs History',
           style: TextStyle(
-            color: Color(0xFF1C1C1E),
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: false,
         actions: [
@@ -46,7 +46,7 @@ class _ObservationsHistoryScreenState
                 ),
               );
             },
-            icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
+            icon: const Icon(Icons.add_rounded, color: Colors.black),
             tooltip: 'Record Vital Signs',
           ),
         ],
@@ -278,11 +278,6 @@ class _ObservationsHistoryScreenState
               });
 
             final latest = sortedObs.first;
-            final latestDate =
-                DateTime.tryParse(
-                  latest['effectiveDateTime'] as String? ?? '',
-                ) ??
-                DateTime.now();
 
             return GestureDetector(
               onTap: () {
@@ -322,29 +317,20 @@ class _ObservationsHistoryScreenState
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
+                  border: Border.all(color: Colors.grey.shade100),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _getVitalSignColor(
-                          vitalSignType,
-                        ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         _getVitalSignIcon(vitalSignType),
-                        color: _getVitalSignColor(vitalSignType),
-                        size: 24,
+                        color: Colors.black,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -355,61 +341,39 @@ class _ObservationsHistoryScreenState
                           Text(
                             vitalSignType,
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1C1C1E),
+                              color: Colors.black,
                             ),
                           ),
-                          const SizedBox(height: 4),
                           Text(
-                            '${observations.length} recordings',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF8E8E93),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('MMM dd, yyyy').format(latestDate),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF8E8E93),
-                            ),
+                            '${observations.length} records',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                           ),
                         ],
                       ),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (latest['value'] != null)
                           Text(
                             '${latest['value']}',
-                            style: TextStyle(
-                              fontSize: 20,
+                            style: const TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: _getVitalSignColor(vitalSignType),
+                              color: Colors.black,
                             ),
                           ),
-                        if (latest['unit'] != null) ...[
-                          const SizedBox(height: 2),
+                        if (latest['unit'] != null)
                           Text(
                             latest['unit'] as String,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF8E8E93),
-                            ),
+                            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                           ),
-                        ],
                       ],
                     ),
                     const SizedBox(width: 12),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Color(0xFF8E8E93),
-                    ),
+                    const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
                   ],
                 ),
               ),
@@ -712,13 +676,6 @@ class _ObservationsHistoryScreenState
       }
     }
 
-    final latestDate = sorted.isNotEmpty
-        ? DateTime.tryParse(
-                sorted.first['effectiveDateTime'] as String? ?? '',
-              ) ??
-              DateTime.now()
-        : DateTime.now();
-
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -736,58 +693,33 @@ class _ObservationsHistoryScreenState
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.shade100),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _getVitalSignColor(
-                  'blood pressure',
-                ).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.monitor_heart,
-                color: _getVitalSignColor('blood pressure'),
-                size: 24,
+              child: const Icon(
+                Icons.monitor_heart_outlined,
+                color: Colors.black,
+                size: 20,
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Blood Pressure',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1C1C1E),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Latest reading',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('MMM dd, yyyy').format(latestDate),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E8E93),
+                      color: Colors.black,
                     ),
                   ),
                 ],
@@ -795,32 +727,23 @@ class _ObservationsHistoryScreenState
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   '$systolicValue / $diastolicValue',
-                  style: TextStyle(
-                    fontSize: 20,
+                  style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: _getVitalSignColor('blood pressure'),
+                    color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   unit,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF8E8E93),
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                 ),
               ],
             ),
             const SizedBox(width: 12),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF8E8E93),
-            ),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
           ],
         ),
       ),

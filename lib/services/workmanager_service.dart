@@ -215,9 +215,6 @@ class WorkManagerService {
 
 /// Task name constants - centralized registry of all background tasks
 class BackgroundTaskNames {
-  /// Health data sync from Health Connect
-  static const String healthDataSync = 'health_data_sync';
-
   /// Vendor (Fitbit) data sync
   static const String vendorFitbitSync = 'vendor_fitbit_sync';
 
@@ -227,9 +224,6 @@ class BackgroundTaskNames {
 
 /// Unique task identifiers - used to cancel/update specific tasks
 class BackgroundTaskIds {
-  /// Periodic health sync task
-  static const String healthSyncPeriodic = 'health_sync_periodic_task';
-
   /// Periodic vendor sync task
   static const String vendorSyncPeriodic = 'vendor_sync_periodic_task';
 
