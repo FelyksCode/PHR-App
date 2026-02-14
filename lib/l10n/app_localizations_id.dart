@@ -15,9 +15,6 @@ class AppLocalizationsId extends AppLocalizations {
   String get home => 'Beranda';
 
   @override
-  String get notifications => 'Notifikasi';
-
-  @override
   String get settings => 'Pengaturan';
 
   @override
@@ -84,34 +81,6 @@ class AppLocalizationsId extends AppLocalizations {
   String get noData => 'Tidak ada data';
 
   @override
-  String get welcomeReminders => 'Selamat Datang di Pengingat!';
-
-  @override
-  String get welcomeRemindersDesc =>
-      'Atur pengingat untuk melacak tanda vital Anda secara teratur';
-
-  @override
-  String get createReminder => 'Buat Pengingat';
-
-  @override
-  String get createReminderDesc =>
-      'Ketuk tombol + di kanan atas untuk menambah pengingat baru';
-
-  @override
-  String get swipeRightToggle => 'Geser Kanan untuk Mengaktifkan/Menonaktifkan';
-
-  @override
-  String get swipeRightToggleDesc =>
-      'Geser kanan pada pengingat untuk mengaktifkan atau menonaktifkannya';
-
-  @override
-  String get swipeLeftDelete => 'Geser Kiri untuk Menghapus';
-
-  @override
-  String get swipeLeftDeleteDesc =>
-      'Geser kiri pada pengingat untuk menghapusnya secara permanen';
-
-  @override
   String get next => 'Selanjutnya';
 
   @override
@@ -124,19 +93,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get tutorial => 'Tutorial';
 
   @override
-  String get addReminder => 'Tambah Pengingat';
-
-  @override
-  String get noRemindersYet => 'Belum ada pengingat.';
-
-  @override
   String get title => 'Judul';
-
-  @override
-  String get selectVitalSign => 'Pilih Tanda Vital';
-
-  @override
-  String get selectInterval => 'Pilih Interval';
 
   @override
   String get interval => 'Interval';
@@ -149,9 +106,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get time => 'Waktu';
-
-  @override
-  String get pickTime => 'Pilih Waktu';
 
   @override
   String get daily => 'Harian';
@@ -231,22 +185,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get indonesian => 'Bahasa Indonesia';
-
-  @override
-  String get healthReminders => 'Pengingat Kesehatan';
-
-  @override
-  String get enableReminders => 'Aktifkan pengingat';
-
-  @override
-  String get enableRemindersDesc =>
-      'Aktifkan notifikasi untuk mengingatkan Anda mencatat tanda vital.';
-
-  @override
-  String get vibrate => 'Getar';
-
-  @override
-  String get vibrateDesc => 'Gunakan getaran untuk notifikasi pengingat.';
 
   @override
   String get syncSettings => 'Pengaturan Sinkronisasi';

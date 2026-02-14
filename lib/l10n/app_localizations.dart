@@ -110,12 +110,6 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get home;
 
-  /// No description provided for @notifications.
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
-  String get notifications;
-
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -248,54 +242,6 @@ abstract class AppLocalizations {
   /// **'No data available'**
   String get noData;
 
-  /// No description provided for @welcomeReminders.
-  ///
-  /// In en, this message translates to:
-  /// **'Welcome to Reminders!'**
-  String get welcomeReminders;
-
-  /// No description provided for @welcomeRemindersDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Set reminders to track your vital signs regularly'**
-  String get welcomeRemindersDesc;
-
-  /// No description provided for @createReminder.
-  ///
-  /// In en, this message translates to:
-  /// **'Create a Reminder'**
-  String get createReminder;
-
-  /// No description provided for @createReminderDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap the + button in the top right to add a new reminder'**
-  String get createReminderDesc;
-
-  /// No description provided for @swipeRightToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe Right to Toggle'**
-  String get swipeRightToggle;
-
-  /// No description provided for @swipeRightToggleDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe right on a reminder to enable or disable it'**
-  String get swipeRightToggleDesc;
-
-  /// No description provided for @swipeLeftDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe Left to Delete'**
-  String get swipeLeftDelete;
-
-  /// No description provided for @swipeLeftDeleteDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe left on a reminder to delete it permanently'**
-  String get swipeLeftDeleteDesc;
-
   /// No description provided for @next.
   ///
   /// In en, this message translates to:
@@ -320,35 +266,11 @@ abstract class AppLocalizations {
   /// **'Tutorial'**
   String get tutorial;
 
-  /// No description provided for @addReminder.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Reminder'**
-  String get addReminder;
-
-  /// No description provided for @noRemindersYet.
-  ///
-  /// In en, this message translates to:
-  /// **'No reminders yet.'**
-  String get noRemindersYet;
-
   /// No description provided for @title.
   ///
   /// In en, this message translates to:
   /// **'Title'**
   String get title;
-
-  /// No description provided for @selectVitalSign.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Vital Sign'**
-  String get selectVitalSign;
-
-  /// No description provided for @selectInterval.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Interval'**
-  String get selectInterval;
 
   /// No description provided for @interval.
   ///
@@ -373,12 +295,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Time'**
   String get time;
-
-  /// No description provided for @pickTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick Time'**
-  String get pickTime;
 
   /// No description provided for @daily.
   ///
@@ -535,36 +451,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Indonesian (Bahasa Indonesia)'**
   String get indonesian;
-
-  /// No description provided for @healthReminders.
-  ///
-  /// In en, this message translates to:
-  /// **'Health Reminders'**
-  String get healthReminders;
-
-  /// No description provided for @enableReminders.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable reminders'**
-  String get enableReminders;
-
-  /// No description provided for @enableRemindersDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Turn on notifications to remind you to record vital signs.'**
-  String get enableRemindersDesc;
-
-  /// No description provided for @vibrate.
-  ///
-  /// In en, this message translates to:
-  /// **'Vibrate'**
-  String get vibrate;
-
-  /// No description provided for @vibrateDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Use vibration for reminder notifications.'**
-  String get vibrateDesc;
 
   /// No description provided for @syncSettings.
   ///

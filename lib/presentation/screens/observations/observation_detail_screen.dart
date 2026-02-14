@@ -59,9 +59,7 @@ class _ObservationDetailScreenState
     }
   }
 
-  List<Map<String, dynamic>> _getFilteredObservations({
-    bool Function(Map<String, dynamic>)? filter,
-  }) {
+  List<Map<String, dynamic>> _getFilteredObservations() {
     final detailState = ref.read(observationDetailProvider);
     final now = DateTime.now();
     final DateTime cutoffDate = switch (detailState.selectedPeriod) {
@@ -75,32 +73,7 @@ class _ObservationDetailScreenState
       if (dateTimeStr == null) return false;
       final dateTime = DateTime.tryParse(dateTimeStr)?.toLocal();
       if (dateTime == null) return false;
-      if (!dateTime.isAfter(cutoffDate)) return false;
-      if (filter != null && !filter(obs)) return false;
-      return true;
-    }).toList();
-  }
-
-  List<FlSpot> _generateChartData(List<Map<String, dynamic>> filteredObs) {
-    if (filteredObs.isEmpty) return [];
-
-    final sorted = List<Map<String, dynamic>>.from(filteredObs)
-      ..sort((a, b) {
-        final dateA =
-            DateTime.tryParse(a['effectiveDateTime'] as String? ?? '')?.toLocal() ??
-            DateTime.now();
-        final dateB =
-            DateTime.tryParse(b['effectiveDateTime'] as String? ?? '')?.toLocal() ??
-            DateTime.now();
-        return dateA.compareTo(dateB);
-      });
-
-    return sorted.asMap().entries.map((entry) {
-      final value = entry.value['value'];
-      final numValue = value is num
-          ? value.toDouble()
-          : double.tryParse(value.toString()) ?? 0.0;
-      return FlSpot(entry.key.toDouble(), numValue);
+      return dateTime.isAfter(cutoffDate);
     }).toList();
   }
 
@@ -133,11 +106,7 @@ class _ObservationDetailScreenState
             'systolic': null,
             'diastolic': null,
             'unit': 'mmHg',
-            'notes': obs['note'] != null
-                ? (obs['note'] as List).isNotEmpty
-                      ? (obs['note'][0]['text'] as String?)
-                      : null
-                : null,
+            'notes': obs['notes'] ?? (obs['note'] is List && (obs['note'] as List).isNotEmpty ? obs['note'][0]['text'] : null),
           },
         );
 
@@ -203,14 +172,12 @@ class _ObservationDetailScreenState
     final filteredObservations = _getFilteredObservations();
 
     final bool isTodayPeriod = detailState.selectedPeriod == TimePeriod.hours24;
-    final bool hasSingleTodayRecord =
-        isTodayPeriod && filteredObservations.length == 1;
 
-    List<Map<String, dynamic>> sortedObservations;
+    List<Map<String, dynamic>> processedObservations;
     if (_isBloodPressure) {
-      sortedObservations = _groupBloodPressureHistory(filteredObservations);
+      processedObservations = _groupBloodPressureHistory(filteredObservations);
     } else {
-      sortedObservations = List<Map<String, dynamic>>.from(filteredObservations)
+      processedObservations = List<Map<String, dynamic>>.from(filteredObservations)
         ..sort((a, b) {
           final dateA =
               DateTime.tryParse(a['effectiveDateTime'] as String? ?? '')?.toLocal() ??
@@ -222,32 +189,44 @@ class _ObservationDetailScreenState
         });
     }
 
-    final totalItems = sortedObservations.length;
+    final totalItems = processedObservations.length;
     final displayedItems = (detailState.currentPage * _itemsPerPage)
         .clamp(0, totalItems)
         .toInt();
-    final paginatedObservations = sortedObservations.take(displayedItems).toList();
+    final paginatedObservations = processedObservations.take(displayedItems).toList();
     final hasMore = displayedItems < totalItems;
 
-    final latestObs = sortedObservations.isNotEmpty
-        ? sortedObservations.first
+    final latestObs = processedObservations.isNotEmpty
+        ? processedObservations.first
         : null;
-    final chartData = _isBloodPressure
-        ? <FlSpot>[]
-        : _generateChartData(filteredObservations);
 
-    final systolicSeries = _isBloodPressure
-        ? sortedObservations
-              .where((e) => e['systolic'] != null)
-              .map((e) => {'value': e['systolic'], 'effectiveDateTime': e['effectiveDateTime']})
-              .toList()
-        : <Map<String, dynamic>>[];
-    final diastolicSeries = _isBloodPressure
-        ? sortedObservations
-              .where((e) => e['diastolic'] != null)
-              .map((e) => {'value': e['diastolic'], 'effectiveDateTime': e['effectiveDateTime']})
-              .toList()
-        : <Map<String, dynamic>>[];
+    final hasSingleTodayRecord = isTodayPeriod && processedObservations.length == 1;
+
+    // Charts generation
+    List<FlSpot> mainChartSpots = [];
+    List<FlSpot> systolicSpots = [];
+    List<FlSpot> diastolicSpots = [];
+
+    if (processedObservations.isNotEmpty) {
+      final chronological = processedObservations.reversed.toList();
+      for (int i = 0; i < chronological.length; i++) {
+        final obs = chronological[i];
+        final x = i.toDouble();
+        if (_isBloodPressure) {
+          if (obs['systolic'] != null) {
+            systolicSpots.add(FlSpot(x, (obs['systolic'] as num).toDouble()));
+          }
+          if (obs['diastolic'] != null) {
+            diastolicSpots.add(FlSpot(x, (obs['diastolic'] as num).toDouble()));
+          }
+        } else {
+          final val = _toDouble(obs['value']);
+          if (val != null) {
+            mainChartSpots.add(FlSpot(x, val));
+          }
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -284,11 +263,11 @@ class _ObservationDetailScreenState
             _buildPeriodSelector(),
             const SizedBox(height: 20),
             if (hasSingleTodayRecord)
-              _buildSingleDataInfoCard(sortedObservations.first)
+              _buildSingleDataInfoCard(processedObservations.first)
             else if (_isBloodPressure)
-              _buildBloodPressureChartCard(systolicSeries, diastolicSeries)
-            else if (chartData.isNotEmpty)
-              _buildChartCard(chartData)
+              _buildBloodPressureChartCard(systolicSpots, diastolicSpots)
+            else if (mainChartSpots.isNotEmpty)
+              _buildChartCard(mainChartSpots)
             else
               _buildEmptyChartCard(),
             const SizedBox(height: 24),
@@ -333,7 +312,7 @@ class _ObservationDetailScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.black : Colors.transparent,
+            color: isSelected ? const Color(0xFF2ECC71) : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Center(
@@ -355,8 +334,9 @@ class _ObservationDetailScreenState
     final values = chartData.map((spot) => spot.y).toList();
     final minValue = values.isEmpty ? 0.0 : values.reduce((a, b) => a < b ? a : b);
     final maxValue = values.isEmpty ? 100.0 : values.reduce((a, b) => a > b ? a : b);
-    final padding = (maxValue - minValue) * 0.15;
-    final minY = (minValue - padding).clamp(0.0, minValue);
+    final range = maxValue - minValue;
+    final padding = range == 0 ? 10.0 : range * 0.15;
+    final minY = (minValue - padding).clamp(0.0, double.infinity);
     final maxY = maxValue + padding;
 
     return Container(
@@ -387,28 +367,24 @@ class _ObservationDetailScreenState
                     barRods: [
                       BarChartRodData(
                         toY: entry.value.y,
-                        color: Colors.black,
+                        color: const Color(0xFF2ECC71),
                         width: 12,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
                       ),
                     ],
                   );
                 }).toList(),
-                titlesData: FlTitlesData(
+                titlesData: const FlTitlesData(
                   show: true,
-                  bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toStringAsFixed(0),
-                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
-                      ),
+                      reservedSize: 35,
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -428,22 +404,18 @@ class _ObservationDetailScreenState
   }
 
   Widget _buildBloodPressureChartCard(
-    List<Map<String, dynamic>> systolic,
-    List<Map<String, dynamic>> diastolic,
+    List<FlSpot> systolicSpots,
+    List<FlSpot> diastolicSpots,
   ) {
-    final systolicSpots = _generateChartData(systolic);
-    final diastolicSpots = _generateChartData(diastolic);
     if (systolicSpots.isEmpty && diastolicSpots.isEmpty) return _buildEmptyChartCard();
 
     final allValues = [...systolicSpots.map((e) => e.y), ...diastolicSpots.map((e) => e.y)];
     final minValue = allValues.isEmpty ? 0.0 : allValues.reduce((a, b) => a < b ? a : b);
     final maxValue = allValues.isEmpty ? 100.0 : allValues.reduce((a, b) => a > b ? a : b);
-    final padding = (maxValue - minValue) * 0.15;
-    final minY = (minValue - padding).clamp(0.0, minValue);
+    final range = maxValue - minValue;
+    final padding = range == 0 ? 20.0 : range * 0.15;
+    final minY = (minValue - padding).clamp(0.0, double.infinity);
     final maxY = maxValue + padding;
-
-    List<FlSpot> normalize(List<FlSpot> spots) =>
-        spots.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.y)).toList();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -461,9 +433,9 @@ class _ObservationDetailScreenState
               const Text('Trend', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               Row(
                 children: [
-                  _legendEntry(Colors.black, 'Sys'),
+                  _legendEntry(const Color(0xFFE74C3C), 'Sys'),
                   const SizedBox(width: 12),
-                  _legendEntry(Colors.grey, 'Dia'),
+                  _legendEntry(const Color(0xFF3498DB), 'Dia'),
                 ],
               ),
             ],
@@ -475,20 +447,16 @@ class _ObservationDetailScreenState
               LineChartData(
                 minY: minY,
                 maxY: maxY,
-                titlesData: FlTitlesData(
-                  bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                titlesData: const FlTitlesData(
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toStringAsFixed(0),
-                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
-                      ),
+                      reservedSize: 35,
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -501,18 +469,18 @@ class _ObservationDetailScreenState
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: normalize(systolicSpots),
+                    spots: systolicSpots,
                     isCurved: true,
-                    color: Colors.black,
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: false),
+                    color: const Color(0xFFE74C3C),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
                   ),
                   LineChartBarData(
-                    spots: normalize(diastolicSpots),
+                    spots: diastolicSpots,
                     isCurved: true,
-                    color: Colors.grey[400],
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: false),
+                    color: const Color(0xFF3498DB),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
                   ),
                 ],
               ),
@@ -620,12 +588,20 @@ class _ObservationDetailScreenState
 
   Widget _buildStatsCard(Map<String, dynamic> latestObs) {
     final latestDate = DateTime.tryParse(latestObs['effectiveDateTime'] as String? ?? '')?.toLocal() ?? DateTime.now();
+    final cardColor = _isBloodPressure ? const Color(0xFFE74C3C) : const Color(0xFF2ECC71);
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(12),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: cardColor.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,7 +611,7 @@ class _ObservationDetailScreenState
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color: Colors.grey[400],
+              color: Colors.white.withValues(alpha: 0.7),
               letterSpacing: 1.2,
             ),
           ),
@@ -648,25 +624,31 @@ class _ObservationDetailScreenState
                     ? '${latestObs['systolic'] ?? '--'} / ${latestObs['diastolic'] ?? '--'}'
                     : '${latestObs['value'] ?? '--'}',
                 style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(width: 8),
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   (latestObs['unit'] as String?) ?? '',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                  style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.7)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            DateFormat('MMMM dd, yyyy • hh:mm a').format(latestDate),
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+          Row(
+            children: [
+              const Icon(Icons.access_time_rounded, size: 14, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text(
+                DateFormat('MMMM dd, yyyy • hh:mm a').format(latestDate),
+                style: const TextStyle(fontSize: 13, color: Colors.white70),
+              ),
+            ],
           ),
         ],
       ),
@@ -748,7 +730,7 @@ class _ObservationDetailScreenState
             width: double.infinity,
             child: TextButton(
               onPressed: () => ref.read(observationDetailProvider.notifier).incrementPage(),
-              child: const Text('Load More', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+              child: const Text('Load More', style: TextStyle(color: Color(0xFF2ECC71), fontWeight: FontWeight.w700)),
             ),
           ),
       ],
@@ -827,6 +809,9 @@ class _ObservationDetailScreenState
                   observationType,
                   valueController,
                   notesController,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2ECC71),
                 ),
                 child: Text('Save Measurement'.toUpperCase()),
               ),

@@ -1,4 +1,3 @@
-import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 
@@ -7,8 +6,6 @@ import '../core/errors/app_error_logger.dart';
 import '../core/network/api_client.dart';
 import '../core/constants/api_constants.dart';
 import '../services/api_service.dart';
-import '../core/utils/timezone_initializer.dart';
-import 'notification_service.dart';
 
 @pragma('vm:entry-point')
 void workmanagerCallbackDispatcher() {
@@ -19,21 +16,10 @@ void workmanagerCallbackDispatcher() {
     }
 
     try {
-      // STEP 1: Initialize timezone for deterministic background behavior.
-      await initTimezone();
-
-      debugPrint('[TIME CHECK][BG]');
-      debugPrint('DateTime.now(): ${DateTime.now()}');
-      debugPrint('tz.local: ${tz.local}');
-      debugPrint('tz.now(tz.local): ${tz.TZDateTime.now(tz.local)}');
-
-      // STEP 2: Initialize notification service (required for scheduled notifications)
-      await _initializeNotifications();
-
-      // STEP 3: Initialize API client (required for network calls)
+      // STEP 1: Initialize API client (required for network calls)
       _initializeApiClient();
 
-      // STEP 4: Route to appropriate task handler
+      // STEP 2: Route to appropriate task handler
       final handler = TaskRegistry.getHandler(taskName);
 
       if (handler == null) {
@@ -69,18 +55,6 @@ void workmanagerCallbackDispatcher() {
       return Future.value(false);
     }
   });
-}
-
-/// Initialize notification service in background isolate.
-/// Required for tasks that schedule notifications.
-Future<void> _initializeNotifications() async {
-  try {
-    await NotificationService.instance.init();
-    debugPrint('[BG] Notifications initialized');
-  } catch (e) {
-    // Non-fatal: some tasks may not need notifications
-    debugPrint('[BG] Failed to initialize notifications: $e (continuing)');
-  }
 }
 
 /// Initialize API client in background isolate.

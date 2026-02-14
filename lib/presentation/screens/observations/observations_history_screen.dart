@@ -23,31 +23,38 @@ class _ObservationsHistoryScreenState
     final queuedObservationsState = ref.watch(queuedObservationsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
         title: const Text(
-          'Vital Signs History',
+          'Vital Signs',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
+            color: Color(0xFF2C3E50),
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: const Color(0xFF2C3E50),
         elevation: 0,
         centerTitle: false,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ObservationInputScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add_rounded, color: Colors.black),
-            tooltip: 'Record Vital Signs',
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ObservationInputScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_rounded, color: Color(0xFF2ECC71)),
+              tooltip: 'Record Vital Signs',
+            ),
           ),
         ],
       ),
@@ -312,25 +319,31 @@ class _ObservationsHistoryScreenState
                 );
               },
               child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade100),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getVitalSignColor(vitalSignType).withValues(alpha: 0.08),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: _getVitalSignColor(vitalSignType).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         _getVitalSignIcon(vitalSignType),
-                        color: Colors.black,
-                        size: 20,
+                        color: _getVitalSignColor(vitalSignType),
+                        size: 24,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -341,14 +354,14 @@ class _ObservationsHistoryScreenState
                           Text(
                             vitalSignType,
                             style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF2C3E50),
                             ),
                           ),
                           Text(
                             '${observations.length} records',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                           ),
                         ],
                       ),
@@ -359,21 +372,21 @@ class _ObservationsHistoryScreenState
                         if (latest['value'] != null)
                           Text(
                             '${latest['value']}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: _getVitalSignColor(vitalSignType),
                             ),
                           ),
                         if (latest['unit'] != null)
                           Text(
                             latest['unit'] as String,
-                            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                           ),
                       ],
                     ),
                     const SizedBox(width: 12),
-                    const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey.shade300),
                   ],
                 ),
               ),
@@ -688,25 +701,31 @@ class _ObservationsHistoryScreenState
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFFE74C3C).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
-                Icons.monitor_heart_outlined,
-                color: Colors.black,
-                size: 20,
+                Icons.monitor_heart_rounded,
+                color: Color(0xFFE74C3C),
+                size: 24,
               ),
             ),
             const SizedBox(width: 16),
@@ -717,10 +736,14 @@ class _ObservationsHistoryScreenState
                   Text(
                     'Blood Pressure',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2C3E50),
                     ),
+                  ),
+                  Text(
+                    'Systolic / Diastolic',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
@@ -731,19 +754,19 @@ class _ObservationsHistoryScreenState
                 Text(
                   '$systolicValue / $diastolicValue',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE74C3C),
                   ),
                 ),
                 Text(
                   unit,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                 ),
               ],
             ),
             const SizedBox(width: 12),
-            const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+            Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey.shade300),
           ],
         ),
       ),

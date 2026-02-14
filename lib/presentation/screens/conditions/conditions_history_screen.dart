@@ -44,31 +44,38 @@ class _ConditionsHistoryScreenState
     final queuedConditionsState = ref.watch(queuedConditionsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
         title: const Text(
-          'Conditions History',
+          'Symptoms',
           style: TextStyle(
-            color: Color(0xFF1C1C1E),
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: const Color(0xFF2C3E50),
         elevation: 0,
         centerTitle: false,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ConditionScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
-            tooltip: 'Report Condition',
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3498DB).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ConditionScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_rounded, color: Color(0xFF3498DB)),
+              tooltip: 'Report Condition',
+            ),
           ),
         ],
       ),
@@ -213,23 +220,29 @@ class _ConditionsHistoryScreenState
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
-                    Icon(Icons.report_problem, color: Colors.orange[600]),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.healing_rounded, color: Color(0xFF3498DB)),
+                    const SizedBox(width: 12),
                     Text(
-                      '${allConditions.length} Conditions',
+                      'Recorded Symptoms',
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2C3E50),
                       ),
                     ),
                     if (hasMore) ...[
@@ -478,102 +491,66 @@ class _ConditionsHistoryScreenState
     required DateTime dateTime,
   }) {
     final isQueued = condition['isQueued'] as bool? ?? false;
+    final severity = condition['severity'] as String? ?? 'Unknown';
+    final severityColor = _getSeverityColorFromString(severity);
 
-    // Build condition display with SNOMED code if available
     final conditionText = condition['condition'] as String? ?? 'Unknown';
-    final snomedCode = condition['conditionCode'] as String?;
     final capitalizedCondition = conditionText
         .split(' ')
-        .map(
-          (word) => word.isNotEmpty
-              ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-              : word,
-        )
+        .map((word) => word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}' : word)
         .join(' ');
-    final displayText = snomedCode != null
-        ? '$capitalizedCondition ($snomedCode)'
-        : capitalizedCondition;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      leading: CircleAvatar(
-        backgroundColor: _getSeverityColorFromString(
-          condition['severity'] as String? ?? '',
-        ).withValues(alpha: 0.1),
-        child: Icon(
-          _getConditionIcon(conditionText),
-          color: isQueued
-              ? Colors.orange
-              : _getSeverityColorFromString(
-                  condition['severity'] as String? ?? '',
-                ),
-          size: 20,
-        ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
       ),
-      title: Text(
-        displayText,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const SizedBox(height: 4),
-          Text(DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime)),
-          if (condition['notes'] != null &&
-              (condition['notes'] as String).isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                condition['notes'] as String,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF8E8E93),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: severityColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          if (isQueued)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  Icon(Icons.cloud_off, size: 14, color: Colors.orange),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Pending sync',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isQueued
-              ? Colors.orange.withValues(alpha: 0.1)
-              : _getSeverityColorFromString(
-                  condition['severity'] as String? ?? '',
-                ).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          isQueued ? 'Queued' : (condition['severity'] as String? ?? 'Unknown'),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isQueued
-                ? Colors.orange
-                : _getSeverityColorFromString(
-                    condition['severity'] as String? ?? '',
-                  ),
+            child: Icon(_getConditionIcon(conditionText), color: severityColor, size: 22),
           ),
-        ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  capitalizedCondition,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('MMM dd • hh:mm a').format(dateTime),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: severityColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              isQueued ? 'Syncing...' : severity,
+              style: TextStyle(
+                color: severityColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

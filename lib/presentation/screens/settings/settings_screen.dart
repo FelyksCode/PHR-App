@@ -4,7 +4,6 @@ import '../../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../profile/profile_screen.dart';
 import '../../../services/export_service.dart';
-import '../notifications/health_reminders_screen.dart';
 import 'sync_settings_screen.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import '../vendors/vendor_selection_screen.dart';
@@ -19,18 +18,18 @@ class SettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
         title: Text(
           l10n.settings,
           style: const TextStyle(
-            color: Color(0xFF1C1C1E),
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: const Color(0xFF2C3E50),
         elevation: 0,
         centerTitle: false,
       ),
@@ -53,7 +52,7 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Data Export',
                         subtitle: 'Export your health records',
                         icon: Icons.download_outlined,
-                        color: Colors.black,
+                        color: const Color(0xFF2ECC71),
                         onTap: () => _exportData(context, ref),
                       ),
                       _buildSettingItem(
@@ -61,7 +60,7 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Sync Settings',
                         subtitle: 'Configure automatic syncing',
                         icon: Icons.sync_rounded,
-                        color: Colors.black,
+                        color: const Color(0xFF3498DB),
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -75,32 +74,11 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Wearable Sources',
                         subtitle: 'Manage Fitbit connection',
                         icon: Icons.watch_outlined,
-                        color: Colors.black,
+                        color: const Color(0xFFF1C40F),
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const VendorSelectionScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSettingsSection(
-                    context,
-                    title: 'Notifications',
-                    items: [
-                      _buildSettingItem(
-                        context,
-                        title: 'Health Reminders',
-                        subtitle: 'Medication and checkup reminders',
-                        icon: Icons.notifications_none_rounded,
-                        color: Colors.black,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const HealthRemindersScreen(),
                             ),
                           );
                         },
@@ -118,8 +96,8 @@ class SettingsScreen extends ConsumerWidget {
                         subtitle: locale.languageCode == 'id'
                             ? l10n.indonesian
                             : l10n.english,
-                        icon: Icons.language,
-                        color: const Color(0xFF32D74B),
+                        icon: Icons.language_rounded,
+                        color: const Color(0xFF2ECC71),
                         onTap: () => _showLanguageDialog(context, ref, l10n),
                       ),
                     ],
@@ -133,24 +111,24 @@ class SettingsScreen extends ConsumerWidget {
                         context,
                         title: 'Help Center',
                         subtitle: 'Get help and support',
-                        icon: Icons.help_center,
-                        color: const Color(0xFF007AFF),
+                        icon: Icons.help_outline_rounded,
+                        color: const Color(0xFF3498DB),
                         onTap: () {},
                       ),
                       _buildSettingItem(
                         context,
                         title: 'Contact Us',
                         subtitle: 'Send feedback or report issues',
-                        icon: Icons.contact_support,
-                        color: const Color(0xFF5AC8FA),
+                        icon: Icons.mail_outline_rounded,
+                        color: const Color(0xFF2ECC71),
                         onTap: () {},
                       ),
                       _buildSettingItem(
                         context,
                         title: 'About',
                         subtitle: 'App version and legal info',
-                        icon: Icons.info,
-                        color: const Color(0xFF8E8E93),
+                        icon: Icons.info_outline_rounded,
+                        color: Colors.grey,
                         onTap: () {},
                       ),
                     ],
@@ -173,32 +151,44 @@ class SettingsScreen extends ConsumerWidget {
           context,
         ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: const Color(0xFF007AFF).withValues(alpha: 0.1),
-              child: Text(
-                (user?.name ?? 'U').isNotEmpty
-                    ? (user?.name ?? 'U')[0].toUpperCase()
-                    : 'U',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF007AFF),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.2), width: 4),
+              ),
+              child: CircleAvatar(
+                radius: 32,
+                backgroundColor: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                child: Text(
+                  (user?.name ?? 'U').isNotEmpty
+                      ? (user?.name ?? 'U')[0].toUpperCase()
+                      : 'U',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2ECC71),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,25 +197,25 @@ class SettingsScreen extends ConsumerWidget {
                     user?.name ?? 'User',
                     style: const TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1C1C1E),
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF2C3E50),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     user?.email ?? 'user@example.com',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF8E8E93),
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF8E8E93),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 24,
+              color: Colors.grey.shade400,
             ),
           ],
         ),
@@ -241,20 +231,29 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF8E8E93),
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 12),
+          child: Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey.shade500,
+              letterSpacing: 1.2,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(children: items),
         ),
@@ -272,41 +271,41 @@ class SettingsScreen extends ConsumerWidget {
   }) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: color, size: 22),
+        child: Icon(icon, color: color, size: 20),
       ),
       title: Text(
         title,
         style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1C1C1E),
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF2C3E50),
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
       ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Color(0xFF8E8E93),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        size: 20,
+        color: Colors.grey.shade300,
       ),
     );
   }
 
   Widget _buildLogoutSection(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE5E5EA), width: 1)),
+        border: Border(top: BorderSide(color: Colors.grey.shade100, width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -347,12 +346,13 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF3B30),
-              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xFFFEF2F2),
+              foregroundColor: const Color(0xFFE74C3C),
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFFEE2E2)),
               ),
             ),
             child: const Text(

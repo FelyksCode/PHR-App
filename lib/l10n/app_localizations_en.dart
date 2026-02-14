@@ -15,9 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home => 'Home';
 
   @override
-  String get notifications => 'Notifications';
-
-  @override
   String get settings => 'Settings';
 
   @override
@@ -84,34 +81,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noData => 'No data available';
 
   @override
-  String get welcomeReminders => 'Welcome to Reminders!';
-
-  @override
-  String get welcomeRemindersDesc =>
-      'Set reminders to track your vital signs regularly';
-
-  @override
-  String get createReminder => 'Create a Reminder';
-
-  @override
-  String get createReminderDesc =>
-      'Tap the + button in the top right to add a new reminder';
-
-  @override
-  String get swipeRightToggle => 'Swipe Right to Toggle';
-
-  @override
-  String get swipeRightToggleDesc =>
-      'Swipe right on a reminder to enable or disable it';
-
-  @override
-  String get swipeLeftDelete => 'Swipe Left to Delete';
-
-  @override
-  String get swipeLeftDeleteDesc =>
-      'Swipe left on a reminder to delete it permanently';
-
-  @override
   String get next => 'Next';
 
   @override
@@ -124,19 +93,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tutorial => 'Tutorial';
 
   @override
-  String get addReminder => 'Add Reminder';
-
-  @override
-  String get noRemindersYet => 'No reminders yet.';
-
-  @override
   String get title => 'Title';
-
-  @override
-  String get selectVitalSign => 'Select Vital Sign';
-
-  @override
-  String get selectInterval => 'Select Interval';
 
   @override
   String get interval => 'Interval';
@@ -149,9 +106,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get time => 'Time';
-
-  @override
-  String get pickTime => 'Pick Time';
 
   @override
   String get daily => 'Daily';
@@ -230,22 +184,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get indonesian => 'Indonesian (Bahasa Indonesia)';
-
-  @override
-  String get healthReminders => 'Health Reminders';
-
-  @override
-  String get enableReminders => 'Enable reminders';
-
-  @override
-  String get enableRemindersDesc =>
-      'Turn on notifications to remind you to record vital signs.';
-
-  @override
-  String get vibrate => 'Vibrate';
-
-  @override
-  String get vibrateDesc => 'Use vibration for reminder notifications.';
 
   @override
   String get syncSettings => 'Sync Settings';

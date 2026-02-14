@@ -11,16 +11,12 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/main_shell.dart';
 import 'presentation/screens/vendors/vendor_selection_screen.dart';
 import 'providers/auth_provider.dart';
-import 'services/notification_service.dart';
 import 'services/workmanager_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   ApiClient.initialize(baseUrl: ApiConstants.baseUrl);
-
-  await NotificationService.instance.init();
-  await NotificationService.instance.requestNotificationPermission();
 
   if (Platform.isAndroid) {
     await WorkManagerService.instance.initialize(
@@ -51,43 +47,46 @@ class PHRApp extends ConsumerWidget {
       ],
       supportedLocales: const [Locale('en'), Locale('id')],
       theme: ThemeData(
-        primaryColor: Colors.black,
-        scaffoldBackgroundColor: Colors.white,
+        useMaterial3: true,
+        primaryColor: const Color(0xFF2ECC71),
+        scaffoldBackgroundColor: const Color(0xFFF8FAF8),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.black,
-          primary: Colors.black,
-          brightness: Brightness.light,
+          seedColor: const Color(0xFF2ECC71),
+          primary: const Color(0xFF2ECC71),
+          secondary: const Color(0xFF3498DB),
           surface: Colors.white,
-          onSurface: Colors.black,
+          brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          foregroundColor: Color(0xFF2C3E50),
           elevation: 0,
           centerTitle: false,
           titleTextStyle: TextStyle(
-            color: Colors.black,
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        cardTheme: const CardThemeData(
+        cardTheme: CardThemeData(
           color: Colors.white,
-          elevation: 0,
+          elevation: 2,
+          shadowColor: Colors.black.withValues(alpha: 0.05),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-            side: BorderSide(color: Color(0xFFE5E5EA), width: 1),
+            borderRadius: const BorderRadius.all(Radius.circular(16)),
+            side: BorderSide(color: Colors.grey.shade100, width: 1),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
+            backgroundColor: const Color(0xFF2ECC71),
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
           ),
         ),
         textTheme: const TextTheme(

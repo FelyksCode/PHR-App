@@ -3,10 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/observation_providers.dart';
 import '../../providers/condition_providers.dart';
-import '../../providers/notification_reminders_provider.dart';
-import '../../providers/reminder_history_provider.dart';
-import '../../../data/models/notification_reminder.dart';
-import '../../../data/models/reminder_history_record.dart';
 
 class DayDetailsScreen extends ConsumerWidget {
   final DateTime selectedDate;
@@ -21,17 +17,15 @@ class DayDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final observationsState = ref.watch(latestObservationsProvider);
     final conditionsState = ref.watch(latestConditionsProvider);
-    final reminders = ref.watch(notificationRemindersProvider);
-    final history = ref.watch(reminderHistoryProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: const Color(0xFF2C3E50),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(
@@ -40,9 +34,9 @@ class DayDetailsScreen extends ConsumerWidget {
             Text(
               DateFormat('EEEE, MMMM d, yyyy').format(selectedDate),
               style: const TextStyle(
-                color: Color(0xFF1C1C1E),
+                color: Color(0xFF2C3E50),
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -50,7 +44,7 @@ class DayDetailsScreen extends ConsumerWidget {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Icons.chevron_left_rounded),
             onPressed: () {
               final yesterday = selectedDate.subtract(const Duration(days: 1));
               Navigator.of(context).pushReplacement(
@@ -61,7 +55,7 @@ class DayDetailsScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () {
               final tomorrow = selectedDate.add(const Duration(days: 1));
               Navigator.of(context).pushReplacement(
@@ -74,16 +68,16 @@ class DayDetailsScreen extends ConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(
               'Vital Signs',
-              Icons.favorite,
-              const Color(0xFFFF3B30),
+              Icons.favorite_rounded,
+              const Color(0xFF2ECC71),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             observationsState.when(
               data: (obs) {
                 final dayObs = obs.where((o) {
@@ -113,13 +107,13 @@ class DayDetailsScreen extends ConsumerWidget {
               error: (_, __) =>
                   _buildEmptyState('Unable to load vital signs for this day'),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             _buildSectionHeader(
-              'Conditions',
-              Icons.report_problem,
-              const Color(0xFFFF9500),
+              'Symptoms & Conditions',
+              Icons.healing_rounded,
+              const Color(0xFF3498DB),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             conditionsState.when(
               data: (conds) {
                 final dayConds = conds.where((c) {
@@ -150,16 +144,6 @@ class DayDetailsScreen extends ConsumerWidget {
               error: (_, __) =>
                   _buildEmptyState('Unable to load conditions for this day'),
             ),
-            const SizedBox(height: 24),
-            _buildSectionHeader(
-              'Reminders',
-              Icons.notifications,
-              const Color(0xFF007AFF),
-            ),
-            const SizedBox(height: 12),
-            _buildCompletedRemindersSection(history),
-            const SizedBox(height: 12),
-            _buildUpcomingRemindersSection(reminders),
           ],
         ),
       ),
@@ -182,8 +166,8 @@ class DayDetailsScreen extends ConsumerWidget {
           title,
           style: const TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1C1C1E),
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF2C3E50),
           ),
         ),
       ],
@@ -193,16 +177,17 @@ class DayDetailsScreen extends ConsumerWidget {
   Widget _buildEmptyState(String message) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+          textAlign: TextAlign.center,
         ),
       ),
     );
@@ -231,12 +216,10 @@ class DayDetailsScreen extends ConsumerWidget {
 
         final displayType = isBpPanel ? 'Blood Pressure' : rawType;
 
-        // Extract BP values if panel
         num? systolic;
         num? diastolic;
         String unit = obs['unit'] as String? ?? '';
         if (isBpPanel) {
-          // Prefer pre-parsed values if present
           if (obs['systolicValue'] is num) {
             systolic = obs['systolicValue'] as num?;
           }
@@ -244,7 +227,6 @@ class DayDetailsScreen extends ConsumerWidget {
             diastolic = obs['diastolicValue'] as num?;
           }
 
-          // Fallback to component parsing
           final components = obs['component'] as List<dynamic>?;
           if (components != null && components.isNotEmpty) {
             for (final component in components) {
@@ -257,11 +239,9 @@ class DayDetailsScreen extends ConsumerWidget {
               } else if (compCode == '8462-4') {
                 if (val is num) diastolic = val;
               }
-              // Prefer unit from component
               unit = vq?['unit'] as String? ?? unit;
             }
           }
-          // Default unit for BP if still empty
           if (unit.isEmpty) unit = 'mmHg';
         }
 
@@ -272,11 +252,11 @@ class DayDetailsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
@@ -285,26 +265,27 @@ class DayDetailsScreen extends ConsumerWidget {
                     Text(
                       displayType,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C3E50),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       timeLabel,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF8E8E93),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                     if (notes != null && notes.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         notes,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF8E8E93),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
@@ -320,15 +301,16 @@ class DayDetailsScreen extends ConsumerWidget {
                       '${systolic?.toString() ?? '--'} / ${diastolic?.toString() ?? '--'}',
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE74C3C),
                       ),
                     ),
                     Text(
                       unit,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8E8E93),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ] else ...[
@@ -336,16 +318,17 @@ class DayDetailsScreen extends ConsumerWidget {
                       value != null ? '$value' : '--',
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2ECC71),
                       ),
                     ),
                     if ((unit).isNotEmpty)
                       Text(
                         unit,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8E8E93),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                   ],
@@ -385,8 +368,8 @@ class DayDetailsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,18 +380,26 @@ class DayDetailsScreen extends ConsumerWidget {
                     child: Text(
                       name,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C3E50),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    severity,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF8E8E93),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3498DB).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      severity,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF3498DB),
+                      ),
                     ),
                   ),
                 ],
@@ -416,186 +407,19 @@ class DayDetailsScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 timeLabel,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
               if (notes != null && notes.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   notes,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF8E8E93),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildUpcomingRemindersSection(List<NotificationReminder> reminders) {
-    final dueReminders = reminders
-        .where(
-          (r) =>
-              r.enabled &&
-              r.isDueOn(selectedDate) &&
-              !r.isCompletedOn(selectedDate) &&
-              (DateTime(
-                    selectedDate.year,
-                    selectedDate.month,
-                    selectedDate.day,
-                  ).isAfter(
-                    DateTime(
-                      r.createdAt.year,
-                      r.createdAt.month,
-                      r.createdAt.day,
-                    ),
-                  ) ||
-                  _isSameDay(selectedDate, r.createdAt)),
-        )
-        .toList();
-    if (dueReminders.isEmpty) {
-      return _buildEmptyState('No upcoming reminders for this day');
-    }
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: dueReminders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final r = dueReminders[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      r.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'At ${r.time.format(context)}${r.interval != null ? ' · ${r.interval}' : ''}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Upcoming',
-                  style: TextStyle(
-                    color: Color(0xFF8E8E93),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCompletedRemindersSection(List<ReminderHistoryRecord> history) {
-    final key =
-        '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-    final records = history.where((h) => h.dateKey == key).toList();
-    if (records.isEmpty) {
-      return _buildEmptyState('No completed reminders for this day');
-    }
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: records.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final r = records[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5EA), width: 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      r.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Completed at ${r.time.format(context)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF8E8E93),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F8EF),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: Color(0xFF32D74B),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Completed',
-                      style: TextStyle(
-                        color: Color(0xFF1C1C1E),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         );

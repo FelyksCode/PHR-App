@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phr_app/data/models/notification_reminder.dart';
-import 'package:phr_app/data/models/reminder_history_record.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:phr_app/presentation/providers/connectivity_provider.dart';
@@ -13,15 +11,12 @@ import 'package:phr_app/providers/vendor_last_sync_provider.dart';
 import '../../providers/observation_providers.dart';
 import '../../providers/condition_providers.dart';
 import '../../providers/health_status_provider.dart';
-import '../../providers/notification_reminders_provider.dart';
-import '../../providers/reminder_history_provider.dart';
 import '../observations/observation_input_screen.dart';
 import '../conditions/condition_screen.dart';
 import '../observations/observations_history_screen.dart';
 import '../conditions/conditions_history_screen.dart';
 import '../settings/settings_screen.dart';
 import '../vendors/vendor_selection_screen.dart';
-import '../notifications/notifications_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -41,29 +36,50 @@ class DashboardScreen extends ConsumerWidget {
     final isOnline = ref.watch(connectivityProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
-        title: Text(
-          'Hello, ${authState.user?.name ?? l10n.userFallback}',
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Good morning,',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              authState.user?.name ?? l10n.userFallback,
+              style: const TextStyle(
+                color: Color(0xFF2C3E50),
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: const Color(0xFF2C3E50),
         elevation: 0,
         centerTitle: false,
+        toolbarHeight: 80,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-            icon: const Icon(Icons.settings_outlined, color: Colors.black),
-            tooltip: l10n.settings,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
+              },
+              icon: const Icon(Icons.settings_rounded, color: Color(0xFF2ECC71)),
+              tooltip: l10n.settings,
+            ),
           ),
         ],
       ),
@@ -84,8 +100,6 @@ class DashboardScreen extends ConsumerWidget {
                 _buildOfflineBanner(),
                 const SizedBox(height: 16),
               ],
-              _buildReminderCard(context, ref, l10n),
-              const SizedBox(height: 24),
               // Vendor integration card - aware of selected data source
               dataSourceConfigState.when(
                 data: (config) => _buildFitbitStatusCard(
@@ -118,143 +132,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildReminderCard(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l10n,
-  ) {
-    final reminders = ref.watch(notificationRemindersProvider);
-    final historyNotifier = ref.read(reminderHistoryProvider.notifier);
-    final today = DateTime.now();
-
-    NotificationReminder? nextReminder;
-    DateTime? nextReminderDate;
-
-    for (final reminder in reminders) {
-      if (!reminder.enabled) continue;
-      if (reminder.isDueOn(today) && !reminder.isCompletedOn(today)) {
-        nextReminder = reminder;
-        nextReminderDate = today;
-        break;
-      }
-    }
-
-    if (nextReminder == null) {
-      DateTime closestDate = DateTime.now().add(const Duration(days: 365));
-      for (final reminder in reminders) {
-        if (!reminder.enabled) continue;
-        final nextDate = _findNextReminderDate(reminder, today);
-        if (nextDate != null && nextDate.isBefore(closestDate)) {
-          closestDate = nextDate;
-          nextReminder = reminder;
-          nextReminderDate = nextDate;
-        }
-      }
-    }
-
-    final hasReminder = nextReminder != null;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: hasReminder
-          ? Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.notifications_outlined, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nextReminder.title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${nextReminderDate == today ? 'Today' : 'Upcoming'} • ${nextReminder.time.format(context)}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (nextReminderDate == today)
-                  TextButton(
-                    onPressed: () {
-                      final reminder = nextReminder;
-                      if (reminder != null && nextReminderDate != null) {
-                        final completedReminder = reminder.completeOn(
-                          nextReminderDate,
-                        );
-                        ref
-                            .read(notificationRemindersProvider.notifier)
-                            .updateReminder(completedReminder);
-                        final dateKey =
-                            '${nextReminderDate.year.toString().padLeft(4, '0')}-${nextReminderDate.month.toString().padLeft(2, '0')}-${nextReminderDate.day.toString().padLeft(2, '0')}';
-                        historyNotifier.add(
-                          ReminderHistoryRecord(
-                            id: '${reminder.id}-$dateKey',
-                            reminderId: reminder.id,
-                            title: reminder.title,
-                            time: reminder.time,
-                            dateKey: dateKey,
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            )
-          : Row(
-              children: [
-                const Icon(Icons.notifications_none, size: 20),
-                const SizedBox(width: 12),
-                const Text(
-                  'No reminders set',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () async {
-                    final newReminder =
-                        await showModalBottomSheet<NotificationReminder>(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (context) => const CreateReminderDialog(),
-                        );
-                    if (newReminder != null) {
-                      ref
-                          .read(notificationRemindersProvider.notifier)
-                          .addReminder(newReminder);
-                    }
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            ),
-    );
-  }
 
   Widget _buildFitbitStatusCard(
     BuildContext context,
@@ -269,59 +146,79 @@ class DashboardScreen extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        gradient: LinearGradient(
+          colors: [Colors.white, Colors.blue.shade50.withValues(alpha: 0.3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(color: Colors.blue.shade100.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.sync_outlined, size: 20),
-              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.sync_rounded, color: Color(0xFF3498DB), size: 24),
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Fitbit Sync',
+                      'Wearable Sync',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C3E50),
                       ),
                     ),
                     if (lastSyncValue != null)
                       Text(
-                        'Synced ${DateFormat('MMM d, HH:mm').format(lastSyncValue)}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        'Last sync: ${DateFormat('MMM d, HH:mm').format(lastSyncValue)}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                       ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: connected ? Colors.grey.shade100 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
+                  color: connected ? const Color(0xFFE8F8F0) : const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  connected ? 'Connected' : 'Disconnected',
+                  connected ? 'Active' : 'Setup Required',
                   style: TextStyle(
-                    color: connected ? Colors.black : Colors.red,
+                    color: connected ? const Color(0xFF27AE60) : const Color(0xFFE74C3C),
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            height: 44,
+            child: ElevatedButton(
               onPressed: isBusy
                   ? null
                   : () {
@@ -331,14 +228,14 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       );
                     },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.black),
-                foregroundColor: Colors.black,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3498DB),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(isBusy ? 'Loading...' : 'Manage Integration'),
+              child: Text(isBusy ? 'Syncing...' : 'Manage Integration'),
             ),
           ),
         ],
@@ -359,46 +256,62 @@ class DashboardScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Health Overview',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              'Your Health Journey',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2C3E50),
+              ),
             ),
-            TextButton.icon(
-              onPressed: () => _showActionsBottomSheet(context, l10n),
-              icon: const Icon(Icons.add, size: 18, color: Colors.black),
-              label: const Text(
-                'Add',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextButton.icon(
+                onPressed: () => _showActionsBottomSheet(context, l10n),
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF2ECC71)),
+                label: const Text(
+                  'Add',
+                  style: TextStyle(
+                    color: Color(0xFF2ECC71),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        _buildSimplifiedStatCard(
+        const SizedBox(height: 20),
+        _buildThematicStatCard(
           context,
-          title: 'Observations',
+          title: 'Vitals & Records',
+          subtitle: 'Track your body metrics',
           value: latestObservationsState.when(
-            data: (obs) => obs.length.toString(),
+            data: (obs) => (obs as List).length.toString(),
             loading: () => '...',
             error: (_, __) => '0',
           ),
+          icon: Icons.favorite_rounded,
+          color: const Color(0xFF2ECC71),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const ObservationsHistoryScreen(),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        _buildSimplifiedStatCard(
+        const SizedBox(height: 16),
+        _buildThematicStatCard(
           context,
-          title: 'Conditions',
+          title: 'Symptoms & Conditions',
+          subtitle: 'Monitor your health status',
           value: latestConditionsState.when(
-            data: (cond) => cond.length.toString(),
+            data: (cond) => (cond as List).length.toString(),
             loading: () => '...',
             error: (_, __) => '0',
           ),
+          icon: Icons.healing_rounded,
+          color: const Color(0xFF3498DB),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const ConditionsHistoryScreen()),
           ),
@@ -407,40 +320,74 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSimplifiedStatCard(
+  Widget _buildThematicStatCard(
     BuildContext context, {
     required String title,
+    required String subtitle,
     required String value,
+    required IconData icon,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: color.withValues(alpha: 0.1)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: color, size: 28),
             ),
-            Row(
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: color,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
               ],
             ),
           ],
@@ -455,30 +402,30 @@ class DashboardScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l10n.quickActions,
-              style: const TextStyle(
+            const Text(
+              'Record Health Data',
+              style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2C3E50),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildActionTile(
               context,
-              title: l10n.vitalSigns,
-              subtitle: l10n.recordMeasurements,
-              icon: Icons.favorite,
-              color: const Color(0xFFFF3B30),
+              title: 'Vital Sign',
+              subtitle: 'Weight, Heart Rate, BP, etc.',
+              icon: Icons.favorite_rounded,
+              color: const Color(0xFF2ECC71),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(
@@ -488,12 +435,13 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
             ),
+            const SizedBox(height: 12),
             _buildActionTile(
               context,
-              title: l10n.conditionsLabel,
-              subtitle: l10n.reportSymptoms,
-              icon: Icons.report_problem,
-              color: const Color(0xFFFF9500),
+              title: 'Symptoms',
+              subtitle: 'Report how you feel',
+              icon: Icons.healing_rounded,
+              color: const Color(0xFF3498DB),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(
@@ -503,7 +451,7 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -518,32 +466,49 @@ class DashboardScreen extends ConsumerWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return ListTile(
+    return InkWell(
       onTap: onTap,
-      leading: Container(
-        padding: const EdgeInsets.all(12),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.1)),
         ),
-        child: Icon(icon, color: color, size: 24),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1C1C1E),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.add_circle_outline_rounded, color: color, size: 20),
+          ],
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93)),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Color(0xFF8E8E93),
       ),
     );
   }
@@ -551,21 +516,31 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildOfflineBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2C3E50), Color(0xFF34495E)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: const Row(
         children: [
           Icon(Icons.cloud_off_rounded, color: Colors.white, size: 18),
-          SizedBox(width: 10),
+          SizedBox(width: 12),
           Text(
-            'Offline Mode - Using cached data',
+            'Offline Mode - Local data only',
             style: TextStyle(
               color: Colors.white,
               fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
         ],
@@ -573,67 +548,4 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  /// Find the next date when a reminder is due based on its recurrence interval.
-  DateTime? _findNextReminderDate(
-    NotificationReminder reminder,
-    DateTime today,
-  ) {
-    final recurrence = reminder.interval ?? 'Daily';
-
-    if (recurrence == 'Daily') {
-      // For daily reminders, find the next day
-      var nextDate = today.add(const Duration(days: 1));
-      // Skip past dates if already completed
-      while (reminder.isCompletedOn(nextDate)) {
-        nextDate = nextDate.add(const Duration(days: 1));
-      }
-      return nextDate;
-    }
-
-    if (recurrence == 'Weekly') {
-      // For weekly reminders, find the next occurrence of the target weekday
-      final targetWeekday = reminder.weekDay ?? 1;
-      var nextDate = today.add(const Duration(days: 1));
-
-      while (nextDate.weekday != targetWeekday ||
-          reminder.isCompletedOn(nextDate)) {
-        nextDate = nextDate.add(const Duration(days: 1));
-        if (nextDate.difference(today).inDays > 365) {
-          return null; // Safety limit
-        }
-      }
-      return nextDate;
-    }
-
-    if (recurrence == 'Monthly') {
-      // For monthly reminders, find the next occurrence of the target day
-      final targetDay = reminder.monthDay ?? 1;
-      var nextDate = DateTime(today.year, today.month, targetDay);
-
-      if (nextDate.isBefore(today) ||
-          (nextDate == today && reminder.isCompletedOn(today))) {
-        // Move to next month
-        nextDate = DateTime(today.year, today.month + 1, targetDay);
-      }
-
-      // Handle month overflow
-      if (nextDate.month > 12) {
-        nextDate = DateTime(nextDate.year + 1, 1, targetDay);
-      }
-
-      // Skip if already completed
-      while (reminder.isCompletedOn(nextDate)) {
-        nextDate = DateTime(nextDate.year, nextDate.month + 1, targetDay);
-        if (nextDate.month > 12) {
-          nextDate = DateTime(nextDate.year + 1, 1, targetDay);
-        }
-        if (nextDate.difference(today).inDays > 365) {
-          return null; // Safety limit
-        }
-      }
-      return nextDate;
-    }
-
-    return null;
-  }
 }
