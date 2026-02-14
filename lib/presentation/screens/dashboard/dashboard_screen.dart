@@ -275,14 +275,20 @@ class DashboardScreen extends ConsumerWidget {
                       style: TextStyle(color: Color(0xFF8E8E93)),
                     ),
                     const SizedBox(height: 12),
-                    for (final profile in SimulationProfile.all)
-                      RadioListTile<SimulationProfile>(
-                        value: profile,
-                        groupValue: selection,
-                        onChanged: (v) => setState(() => selection = v),
-                        title: Text(profile.displayName),
-                        subtitle: Text(_profileDescription(profile)),
+                    RadioGroup<SimulationProfile>(
+                      groupValue: selection,
+                      onChanged: (v) => setState(() => selection = v),
+                      child: Column(
+                        children: [
+                          for (final profile in SimulationProfile.all)
+                            RadioListTile<SimulationProfile>(
+                              value: profile,
+                              title: Text(profile.displayName),
+                              subtitle: Text(_profileDescription(profile)),
+                            ),
+                        ],
                       ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
