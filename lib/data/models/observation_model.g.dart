@@ -50,4 +50,5 @@ const _$DataSourceEnumMap = {
   DataSource.healthKit: 'healthKit',
   DataSource.healthConnect: 'healthConnect',
   DataSource.vendor: 'vendor',
+  DataSource.simulation: 'simulation',
 };

@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
+import '../core/config/app_mode.dart';
 import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
 import '../domain/repositories/health_sync_repository.dart';
@@ -21,6 +22,7 @@ class HealthSyncService {
   Future<void> schedulePeriodicSync({
     Duration interval = const Duration(hours: 1),
   }) async {
+    if (AppConfig.isSimulation) return;
     if (Platform.isAndroid) {
       await WorkManagerService.instance.registerPeriodicTask(
         uniqueName: BackgroundTaskIds.healthSyncPeriodic,
@@ -36,6 +38,7 @@ class HealthSyncService {
 
   /// Cancel scheduled sync using WorkManagerService
   Future<void> cancelPeriodicSync() async {
+    if (AppConfig.isSimulation) return;
     if (Platform.isAndroid) {
       await WorkManagerService.instance.cancelTask(
         BackgroundTaskIds.healthSyncPeriodic,
@@ -49,6 +52,7 @@ class HealthSyncService {
 
   /// Check if periodic sync is currently enabled
   Future<bool> isPeriodicSyncEnabled() async {
+    if (AppConfig.isSimulation) return false;
     if (!Platform.isAndroid) {
       return false;
     }
@@ -77,6 +81,9 @@ class HealthSyncService {
     List<HealthDataType>? specificDataTypes,
     DateTime? since,
   }) async {
+    if (AppConfig.isSimulation) {
+      return SyncResult.failed('Simulation mode: Health Connect is disabled');
+    }
     try {
       // Get current sync status
       final currentStatus = await _repository.getSyncStatus();
@@ -189,6 +196,7 @@ class HealthSyncService {
 
   /// Request permissions for health data types
   Future<bool> requestPermissions(List<HealthDataType> dataTypes) async {
+    if (AppConfig.isSimulation) return false;
     final granted = await _repository.requestPermissions(dataTypes);
 
     if (granted) {
@@ -204,11 +212,14 @@ class HealthSyncService {
 
   /// Check if health sync is supported on current platform
   bool get isSupported {
-    return Platform.isAndroid || Platform.isIOS;
+    return !AppConfig.isSimulation && (Platform.isAndroid || Platform.isIOS);
   }
 
   /// Get platform-specific data source
   DataSource get platformDataSource {
+    if (AppConfig.isSimulation) {
+      return DataSource.manual;
+    }
     if (Platform.isIOS) {
       return DataSource.healthKit;
     } else if (Platform.isAndroid) {

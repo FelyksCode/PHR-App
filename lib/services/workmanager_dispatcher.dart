@@ -6,6 +6,7 @@ import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
 import '../core/network/api_client.dart';
 import '../core/constants/api_constants.dart';
+import '../core/config/app_mode.dart';
 import '../data/repositories/health_sync_repository_impl.dart';
 import '../domain/entities/health_sync_entity.dart';
 import '../domain/entities/observation_entity.dart';
@@ -128,6 +129,10 @@ typedef TaskHandler = Future<bool> Function(Map<String, dynamic>? inputData);
 /// This is self-contained and does not depend on any UI state or providers
 Future<bool> _handleHealthDataSync(Map<String, dynamic>? inputData) async {
   try {
+    if (AppConfig.isSimulation) {
+      debugPrint('[BG] Simulation mode: skipping health data sync');
+      return true;
+    }
     debugPrint('[BG] Starting health data sync...');
 
     // Create instances needed for sync
@@ -235,6 +240,10 @@ Future<bool> _handleHealthDataSync(Map<String, dynamic>? inputData) async {
 /// This is self-contained and does not depend on any UI state or providers
 Future<bool> _handleVendorFitbitSync(Map<String, dynamic>? inputData) async {
   try {
+    if (AppConfig.isSimulation) {
+      debugPrint('[BG] Simulation mode: skipping vendor Fitbit sync');
+      return true;
+    }
     debugPrint('[BG] Starting vendor Fitbit sync...');
 
     // Create API service instance

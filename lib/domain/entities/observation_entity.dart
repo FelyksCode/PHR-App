@@ -151,7 +151,8 @@ enum DataSource {
   wearable('wearable', 'Wearable Device'),
   healthKit('health_kit', 'HealthKit'),
   healthConnect('health_connect', 'Health Connect'),
-  vendor('vendor', 'Vendor Integration');
+  vendor('vendor', 'Vendor Integration'),
+  simulation('simulation', 'Simulation');
 
   const DataSource(this.name, this.displayName);
 

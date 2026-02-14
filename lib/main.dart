@@ -16,6 +16,7 @@ import 'providers/auth_provider.dart';
 import 'providers/health_permission_checker_provider.dart';
 import 'services/notification_service.dart';
 import 'services/workmanager_service.dart';
+import 'core/config/app_mode.dart';
 
 // Provider to track permissions status (prevents repeated async calls)
 final permissionsRequestedProvider = StateProvider<bool>((ref) => false);
@@ -142,10 +143,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Trigger initial permission check
-    Future.microtask(() {
-      ref.read(healthPermissionCheckerProvider.notifier).checkPermissions();
-    });
+    if (AppConfig.isProduction) {
+      // Trigger initial permission check
+      Future.microtask(() {
+        ref.read(healthPermissionCheckerProvider.notifier).checkPermissions();
+      });
+    }
   }
 
   @override
@@ -162,6 +165,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     // Show login screen if not authenticated
     if (!authState.isAuthenticated) {
       return const LoginScreen();
+    }
+
+    // Simulation mode: Health Connect/Fitbit ingestion is disabled.
+    // Skip platform permission gating and go straight to the app shell.
+    if (AppConfig.isSimulation) {
+      return const MainShell();
     }
 
     // If authenticated, use cached permission check

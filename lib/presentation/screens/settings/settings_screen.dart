@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../core/config/app_mode.dart';
 import '../../providers/locale_provider.dart';
 import '../profile/profile_screen.dart';
 import '../../../services/export_service.dart';
@@ -56,34 +57,36 @@ class SettingsScreen extends ConsumerWidget {
                         color: const Color(0xFF007AFF),
                         onTap: () => _exportData(context, ref),
                       ),
-                      _buildSettingItem(
-                        context,
-                        title: 'Sync Settings',
-                        subtitle: 'Configure automatic syncing',
-                        icon: Icons.sync,
-                        color: const Color(0xFF5856D6),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const SyncSettingsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildSettingItem(
-                        context,
-                        title: 'Wearable Sources',
-                        subtitle: 'Manage Fitbit connection',
-                        icon: Icons.watch,
-                        color: const Color(0xFF00B0B9),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const VendorSelectionScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                      if (AppConfig.isProduction)
+                        _buildSettingItem(
+                          context,
+                          title: 'Sync Settings',
+                          subtitle: 'Configure automatic syncing',
+                          icon: Icons.sync,
+                          color: const Color(0xFF5856D6),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SyncSettingsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      if (AppConfig.isProduction)
+                        _buildSettingItem(
+                          context,
+                          title: 'Wearable Sources',
+                          subtitle: 'Manage Fitbit connection',
+                          icon: Icons.watch,
+                          color: const Color(0xFF00B0B9),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const VendorSelectionScreen(),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
                   const SizedBox(height: 24),

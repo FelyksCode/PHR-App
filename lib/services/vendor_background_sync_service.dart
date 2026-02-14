@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
+import '../core/config/app_mode.dart';
 import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
 import '../services/api_service.dart';
@@ -21,6 +22,7 @@ class VendorBackgroundSyncService {
   /// If null, a default of 1 hour is used. The actual minimum
   /// interval is still enforced by WorkManager on Android.
   Future<void> schedulePeriodicVendorSync({Duration? frequency}) async {
+    if (AppConfig.isSimulation) return;
     if (Platform.isAndroid) {
       final effectiveFrequency = frequency ?? const Duration(hours: 1);
       await WorkManagerService.instance.registerPeriodicTask(
@@ -37,6 +39,7 @@ class VendorBackgroundSyncService {
 
   /// Cancel periodic vendor sync using WorkManagerService
   Future<void> cancelPeriodicVendorSync() async {
+    if (AppConfig.isSimulation) return;
     if (Platform.isAndroid) {
       await WorkManagerService.instance.cancelTask(
         BackgroundTaskIds.vendorSyncPeriodic,
@@ -50,6 +53,7 @@ class VendorBackgroundSyncService {
 
   /// Check if periodic vendor sync is currently enabled
   Future<bool> isPeriodicVendorSyncEnabled() async {
+    if (AppConfig.isSimulation) return false;
     if (!Platform.isAndroid) {
       return false;
     }
@@ -75,6 +79,7 @@ class VendorBackgroundSyncService {
 
   /// Perform vendor sync (called from background task)
   Future<bool> performVendorSync() async {
+    if (AppConfig.isSimulation) return true;
     try {
       await _apiService.triggerVendorSync(vendor: 'fitbit');
       // Backend returns 202 Accepted; treat trigger as success.

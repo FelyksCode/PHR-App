@@ -1,6 +1,7 @@
 import '../domain/entities/data_source_config.dart';
 import '../core/errors/app_error.dart';
 import '../core/errors/app_error_logger.dart';
+import '../core/config/app_mode.dart';
 import 'api_service.dart';
 import 'data_source_selection_service.dart';
 
@@ -58,6 +59,12 @@ class DataIngestionService {
   /// Routes to appropriate vendor based on selected data source
   Future<IngestionResult> ingestHealthData() async {
     try {
+      if (AppConfig.isSimulation) {
+        return IngestionResult.error(
+          'Simulation mode: Fitbit sync is disabled',
+        );
+      }
+
       // Get active data source
       final config = await _selectionService.getSelectedDataSource();
 

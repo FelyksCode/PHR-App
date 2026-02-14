@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:phr_app/core/config/app_mode.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phr_app/data/models/notification_reminder.dart';
 import 'package:phr_app/data/models/reminder_history_record.dart';
 import 'package:phr_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:phr_app/presentation/providers/dashboard_calendar_provider.dart';
+import 'package:phr_app/presentation/providers/synthetic_simulation_provider.dart';
 import 'package:phr_app/providers/auth_provider.dart';
 import 'package:phr_app/providers/data_source_providers.dart';
 import 'package:phr_app/domain/entities/data_source_config.dart';
 import 'package:phr_app/providers/vendor_integration_provider.dart';
 import 'package:phr_app/providers/vendor_last_sync_provider.dart';
+import 'package:phr_app/simulation/simulation_profile.dart';
 import '../../providers/observation_providers.dart';
 import '../../providers/condition_providers.dart';
 import '../../providers/health_status_provider.dart';
@@ -42,6 +45,7 @@ class DashboardScreen extends ConsumerWidget {
     final calendarState = ref.watch(dashboardCalendarProvider);
     final calendarNotifier = ref.read(dashboardCalendarProvider.notifier);
     final dataSourceConfigState = ref.watch(dataSourceConfigProvider);
+    final simulationState = ref.watch(syntheticSimulationProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -99,6 +103,14 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               _buildConnectivityBanner(healthStatusState, l10n),
               const SizedBox(height: 16),
+              if (AppConfig.isSimulation) ...[
+                _buildSyntheticSimulationButton(
+                  context,
+                  ref,
+                  simulationState,
+                ),
+                const SizedBox(height: 16),
+              ],
               _buildCalendarView(context, ref, calendarState, calendarNotifier),
               const SizedBox(height: 16),
               _buildReminderCard(context, ref, l10n),
@@ -133,6 +145,202 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildSyntheticSimulationButton(
+    BuildContext context,
+    WidgetRef ref,
+    SyntheticSimulationState simulationState,
+  ) {
+    final isRunning = simulationState.status == SyntheticSimulationStatus.running;
+
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: isRunning
+            ? null
+            : () async {
+                await _startSyntheticSimulationFlow(context, ref);
+              },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF007AFF),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          elevation: 0,
+        ),
+        icon: isRunning
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.science_outlined),
+        label: const Text(
+          'Generate Synthetic Simulated Data',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startSyntheticSimulationFlow(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final selectedProfile = await _pickSimulationProfile(context);
+    if (!context.mounted) return;
+    if (selectedProfile == null) return;
+
+    while (true) {
+      if (!context.mounted) return;
+      final ok = await _runSyntheticSimulationWithProgressDialog(
+        context,
+        ref,
+        selectedProfile,
+      );
+
+      if (!context.mounted) return;
+
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Synthetic patient data generated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Refresh dashboard-relevant data.
+        ref.invalidate(latestObservationsProvider);
+        ref.invalidate(latestConditionsProvider);
+        ref.invalidate(healthStatusProvider);
+        return;
+      }
+
+      final state = ref.read(syntheticSimulationProvider);
+      final message = state.errorMessage ?? 'Unknown error';
+
+      final retry = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Simulation failed'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+
+      if (!context.mounted) return;
+      if (retry != true) return;
+    }
+  }
+
+  Future<SimulationProfile?> _pickSimulationProfile(
+    BuildContext context,
+  ) async {
+    SimulationProfile? selection;
+
+    return showModalBottomSheet<SimulationProfile>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select simulation profile',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'This will generate synthetic symptom + condition data for research/testing only.',
+                      style: TextStyle(color: Color(0xFF8E8E93)),
+                    ),
+                    const SizedBox(height: 12),
+                    for (final profile in SimulationProfile.all)
+                      RadioListTile<SimulationProfile>(
+                        value: profile,
+                        groupValue: selection,
+                        onChanged: (v) => setState(() => selection = v),
+                        title: Text(profile.displayName),
+                        subtitle: Text(_profileDescription(profile)),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(null),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: selection == null
+                                ? null
+                                : () => Navigator.of(context).pop(selection),
+                            child: const Text('Confirm'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _profileDescription(SimulationProfile profile) {
+    switch (profile.profileId) {
+      case 'stable_outpatient':
+        return 'Low symptom burden, mild severity baseline.';
+      case 'treatment_side_effect':
+        return 'Moderate symptoms with notable treatment side-effects.';
+      case 'high_risk_outpatient':
+        return 'Higher symptom burden and more severe presentations.';
+      default:
+        return 'Synthetic outpatient profile.';
+    }
+  }
+
+  Future<bool> _runSyntheticSimulationWithProgressDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SimulationProfile profile,
+  ) async {
+    ref.read(syntheticSimulationProvider.notifier).reset();
+    ref.read(syntheticSimulationProvider.notifier).run(profile: profile);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _SyntheticSimulationProgressDialog(),
+    );
+
+    return ok == true;
   }
 
   Widget _buildCalendarView(
@@ -1277,5 +1485,73 @@ class DashboardScreen extends ConsumerWidget {
     }
 
     return null;
+  }
+}
+
+class _SyntheticSimulationProgressDialog extends ConsumerStatefulWidget {
+  const _SyntheticSimulationProgressDialog();
+
+  @override
+  ConsumerState<_SyntheticSimulationProgressDialog> createState() =>
+      _SyntheticSimulationProgressDialogState();
+}
+
+class _SyntheticSimulationProgressDialogState
+    extends ConsumerState<_SyntheticSimulationProgressDialog> {
+  @override
+  void initState() {
+    super.initState();
+
+    ref.listen<SyntheticSimulationState>(syntheticSimulationProvider, (
+      previous,
+      next,
+    ) {
+      if (!mounted) return;
+      if (next.status == SyntheticSimulationStatus.success) {
+        Navigator.of(context).pop(true);
+      } else if (next.status == SyntheticSimulationStatus.error) {
+        Navigator.of(context).pop(false);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(syntheticSimulationProvider);
+    final stepText = state.step?.label ?? 'Initializing simulation…';
+    final profileText = state.profile?.displayName;
+
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Generating synthetic data'),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(stepText),
+                  if (profileText != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      profileText,
+                      style: const TextStyle(color: Color(0xFF8E8E93)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
